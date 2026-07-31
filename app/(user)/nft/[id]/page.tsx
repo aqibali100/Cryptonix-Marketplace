@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import AuctionPanel from "../../components/auction/AuctionPanel";
+import AuctionPanel from "../../../components/auction/AuctionPanel";
 
 export const metadata: Metadata = {
   title: "Beyond the Horizon — Cryptonix",

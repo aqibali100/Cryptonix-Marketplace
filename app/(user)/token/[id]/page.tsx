@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import TokenDetail from "../../components/tokens/TokenDetail";
+import TokenDetail from "../../../components/tokens/TokenDetail";
 
 export const metadata: Metadata = {
   title: "Token Details — Cryptonix",

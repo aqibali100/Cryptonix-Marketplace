@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import FloatingCards from "./FloatingCards";
 import NFTPreview from "./NFTPreview";

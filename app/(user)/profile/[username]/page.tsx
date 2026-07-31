@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import UserProfile from "../../components/profile/UserProfile";
+import UserProfile from "../../../components/profile/UserProfile";
 
 export const metadata: Metadata = {
   title: "My Profile — Cryptonix",

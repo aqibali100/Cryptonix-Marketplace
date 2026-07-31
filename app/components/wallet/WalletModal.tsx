@@ -76,7 +76,7 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
               className="mt-[7px] mb-0 text-[clamp(29px,4vw,40px)] font-semibold tracking-[-1.8px]"
               id="wallet-title"
             >
-              {connection.isConnected ? "Wallet connected" : "Connect your wallet"}
+              {connection.isConnected ? "Wallet Connected" : "Connect Your Wallet"}
             </h2>
           </div>
           <button onClick={onClose} aria-label="Close wallet modal">
@@ -115,7 +115,7 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
                 void auth.logout().finally(() => disconnect(undefined, { onSuccess: onClose }))
               }
             >
-              {isDisconnecting ? "Disconnecting…" : "Disconnect wallet"}
+              {isDisconnecting ? "Disconnecting…" : "Disconnect Wallet"}
             </button>
           </div>
         ) : (
@@ -124,7 +124,7 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
               Connect with MetaMask. Your keys and assets always stay in your wallet.
             </p>
             <button
-              className="flex w-full items-center gap-3 rounded-[14px] border border-[var(--line)] bg-[rgba(255,255,255,.025)] p-2.5 text-left transition hover:translate-x-[3px] hover:border-[rgba(155,123,255,.35)] hover:bg-[rgba(155,123,255,.07)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--line)] bg-[rgba(255,255,255,.025)] p-2.5 text-left transition hover:translate-x-[3px] hover:border-[rgba(155,123,255,.35)] hover:bg-[rgba(155,123,255,.07)] disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isPending || hasMetaMask !== true}
               onClick={handleConnect}
             >
@@ -140,7 +140,6 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
                   {hasMetaMask === false ? "Extension required" : "Browser extension"}
                 </small>
               </span>
-              <i className="ml-auto not-italic text-[#737e95]">{isPending ? "…" : "→"}</i>
             </button>
             {hasMetaMask === false && (
               <div

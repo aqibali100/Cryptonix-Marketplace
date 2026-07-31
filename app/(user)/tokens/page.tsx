@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import TokensDirectory from "../components/tokens/TokensDirectory";
+import TokensDirectory from "../../components/tokens/TokensDirectory";
 
 export const metadata: Metadata = {
   title: "Token Market — Cryptonix",

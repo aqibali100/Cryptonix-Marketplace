@@ -55,6 +55,25 @@ function DashboardIcon() {
   );
 }
 
+function CreatorIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 4.5 5.5 7.25 4 14.5l5.25 5.25 7.25-1.5L19.25 12 12 4.5Z" />
+      <path d="m9.25 19.75 3.15-6.3M4 14.5l5.2-.05 3.2-1 1-3.2L13.45 5" />
+      <circle cx="11.35" cy="12.35" r="1.35" />
+      <path d="M19 3.5v3M17.5 5h3" />
+    </svg>
+  );
+}
+
 function SignOutIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -89,7 +108,7 @@ export default function Navbar() {
       : balance.isLoading
         ? "•••"
         : "—"
-    : "Connect wallet";
+    : "Connect Wallet";
   const visibleNavigation = navigation;
   const isActiveLink = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -229,8 +248,8 @@ export default function Navbar() {
                         {auth.user?.username
                           ? `@${auth.user.username}`
                           : auth.user
-                            ? "Complete your profile"
-                            : "Cryptonix account"}
+                            ? "Complete Your Profile"
+                            : "Cryptonix Account"}
                       </strong>
                       <span className="mt-1 block truncate text-[12px] text-[#707b91]">
                         {auth.user
@@ -310,6 +329,23 @@ export default function Navbar() {
                       <WalletIcon />
                       <span>Linked wallets</span>
                     </Link>
+                     <Link
+                      className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] text-[#cbd2df] transition hover:bg-white/[.06] hover:text-white"
+                      href={
+                        auth.user.creatorStatus === "approved" ? "/creator" : "/become-creator"
+                      }
+                      onClick={() => setProfileOpen(false)}
+                      role="menuitem"
+                    >
+                      <CreatorIcon />
+                      <span>
+                        {auth.user.creatorStatus === "approved"
+                          ? "Creator Studio"
+                          : auth.user.creatorStatus === "pending"
+                            ? "Creator application"
+                            : "Become a creator"}
+                      </span>
+                    </Link>
                     <div className="my-1 h-px bg-white/[.06]" />
                     <button
                       className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[12px] text-rose-300 transition hover:bg-rose-400/[.07] [&_svg]:h-4 [&_svg]:w-4"
@@ -329,9 +365,9 @@ export default function Navbar() {
                     >
                       <ProfileIcon />
                       {!connection.isConnected
-                        ? "Connect wallet"
+                        ? "Connect Wallet"
                         : auth.isSigningIn
-                          ? "Waiting for signature…"
+                          ? "Waiting for Signature…"
                           : "Sign in with Ethereum"}
                     </button>
                     {auth.error && (

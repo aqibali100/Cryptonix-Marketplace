@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import PermissionGuard from "../components/auth/PermissionGuard";
-import LinkedWallets from "../components/wallet/LinkedWallets";
+import PermissionGuard from "../../components/auth/PermissionGuard";
+import LinkedWallets from "../../components/wallet/LinkedWallets";
 
 export const metadata: Metadata = {
   title: "Linked Wallets — Cryptonix",

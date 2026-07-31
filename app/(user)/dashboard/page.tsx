@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import DashboardGuard from "../components/auth/DashboardGuard";
-import UserDashboard from "../components/dashboard/UserDashboard";
+import DashboardGuard from "../../components/auth/DashboardGuard";
+import UserDashboard from "../../components/dashboard/UserDashboard";
 
 export const metadata: Metadata = {
   title: "User Dashboard — Cryptonix",

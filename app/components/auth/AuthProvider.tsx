@@ -4,6 +4,9 @@ import { SiweMessage } from "siwe";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useConnection, useSignMessage } from "wagmi";
 import { apiRequest } from "../../lib/api";
+import type { CreatorStatus } from "../../types";
+
+export type { CreatorStatus } from "../../types";
 
 export type Permission =
   | "marketplace:view"
@@ -20,11 +23,12 @@ export type Permission =
   | "content:moderate"
   | "roles:manage";
 
-type AuthUser = {
+export type AuthUser = {
   address: string;
   chainId: number;
   authenticatedAt: string;
-  role: "user";
+  role: "user" | "creator";
+  creatorStatus: CreatorStatus;
   permissions: Permission[];
   username: string | null;
 };
@@ -35,6 +39,7 @@ type AuthContextValue = {
   error: string | null;
   signIn: () => Promise<void>;
   updateUsername: (username: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -47,6 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const refreshUser = useCallback(async () => {
+    const { user: sessionUser } = await apiRequest<{ user: AuthUser }>("/api/auth/me");
+    setUser(sessionUser);
+  }, []);
 
   const logout = useCallback(async () => {
     await apiRequest<void>("/api/auth/logout", { method: "POST" }).catch(() => undefined);
@@ -120,17 +130,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user && connection.address && user.address.toLowerCase() === connection.address.toLowerCase()
       ? user
       : null;
+  const authIsLoading =
+    isLoading || connection.status === "connecting" || connection.status === "reconnecting";
   const value = useMemo(
     () => ({
       user: authenticatedUser,
-      isLoading,
+      isLoading: authIsLoading,
       isSigningIn,
       error,
       signIn,
       updateUsername,
+      refreshUser,
       logout,
     }),
-    [authenticatedUser, error, isLoading, isSigningIn, logout, signIn, updateUsername],
+    [
+      authenticatedUser,
+      authIsLoading,
+      error,
+      isSigningIn,
+      logout,
+      refreshUser,
+      signIn,
+      updateUsername,
+    ],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
