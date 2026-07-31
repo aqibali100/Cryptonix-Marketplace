@@ -1,0 +1,212 @@
+@import "tailwindcss";
+@source not "../.next";
+
+:root {
+  --background: #050711;
+  --surface: rgba(17, 22, 43, 0.58);
+  --foreground: #f7f8ff;
+  --muted: #9ba6bd;
+  --line: rgba(255, 255, 255, 0.1);
+  --violet: #9b7bff;
+  --cyan: #53e8dc;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes nav-reflection-sweep {
+  from {
+    transform: translateX(-180%) skewX(-22deg);
+  }
+
+  to {
+    transform: translateX(420%) skewX(-22deg);
+  }
+}
+
+.nav-reflection-link {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.nav-reflection-link::after {
+  position: absolute;
+  z-index: 1;
+  top: -45%;
+  bottom: -45%;
+  left: 0;
+  width: 28%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0.38),
+    rgba(111, 238, 224, 0.14),
+    transparent
+  );
+  filter: blur(0.5px);
+  pointer-events: none;
+  content: "";
+  opacity: 0;
+  transform: translateX(-180%) skewX(-22deg);
+}
+
+.nav-reflection-link:hover::after,
+.nav-reflection-link:focus-visible::after {
+  animation: nav-reflection-sweep 1.6s cubic-bezier(0.22, 0.7, 0.2, 1);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-reflection-link::after {
+    display: none;
+  }
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+main,
+section,
+article,
+aside,
+nav,
+div {
+  min-width: 0;
+}
+
+@media (max-width: 400px) {
+  .site-header {
+    padding: 8px;
+  }
+
+  .navbar {
+    min-height: 58px;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .landing-hero {
+    width: calc(100% - 20px);
+    padding-top: 105px;
+  }
+
+  .eyebrow {
+    max-width: 100%;
+    padding-inline: 10px;
+    letter-spacing: 0.85px;
+    white-space: nowrap;
+  }
+
+  .landing-hero-copy > p {
+    margin-block: 22px 26px;
+    line-height: 1.65;
+  }
+
+  .hero-trust {
+    margin-top: 32px;
+  }
+
+  .floating-proof,
+  .floating-sale {
+    transform: scale(0.86);
+  }
+
+  .floating-proof {
+    left: -12px;
+    transform-origin: left center;
+  }
+
+  .floating-sale {
+    right: -8px;
+    transform-origin: right center;
+  }
+
+  .landing-section-head {
+    gap: 12px;
+  }
+
+  .landing-section-head > div {
+    min-width: 0;
+  }
+
+  .market-title-row h1,
+  .create-heading h1,
+  .dashboard-head h1,
+  .detail-info h1 {
+    overflow-wrap: anywhere;
+    font-size: 34px;
+    letter-spacing: -2px;
+  }
+
+  .market-pulse {
+    align-items: center;
+  }
+
+  .market-pulse > div span {
+    line-height: 1.25;
+  }
+
+  .wallet-modal {
+    max-height: calc(100dvh - 16px);
+    border-radius: 20px;
+    padding: 18px;
+  }
+
+  .modal-head h2 {
+    font-size: 25px;
+    letter-spacing: -1.3px;
+  }
+
+  .footer-cta {
+    min-height: 0;
+    padding: 24px 18px;
+  }
+
+  .footer-cta-actions a {
+    width: 100%;
+  }
+
+  .footer-bottom {
+    align-items: flex-start;
+  }
+
+  .profile-identity {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profile-name-row h1 {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .auction-status,
+  .auction-input-label {
+    gap: 8px;
+  }
+}
