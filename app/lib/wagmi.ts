@@ -2,6 +2,7 @@ import { createConfig, http, injected } from "wagmi";
 import {
   arbitrum,
   base,
+  baseSepolia,
   bsc,
   linea,
   lineaSepolia,
@@ -11,6 +12,7 @@ import {
   monadTestnet,
   optimism,
   polygon,
+  polygonAmoy,
   sepolia,
 } from "wagmi/chains";
 
@@ -27,6 +29,8 @@ const supportedChains = [
   monadTestnet,
   sepolia,
   lineaSepolia,
+  baseSepolia,
+  polygonAmoy,
 ] as const;
 
 export const wagmiConfig = createConfig({
@@ -45,6 +49,8 @@ export const wagmiConfig = createConfig({
     [monadTestnet.id]: http(),
     [sepolia.id]: http(),
     [lineaSepolia.id]: http(),
+    [baseSepolia.id]: http(),
+    [polygonAmoy.id]: http(),
   },
   ssr: true,
 });

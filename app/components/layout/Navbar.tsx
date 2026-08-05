@@ -17,6 +17,17 @@ const navigation = [
   { label: "Collections", href: "/#collections" },
 ];
 
+function validateUsername(value: string) {
+  const username = value.trim();
+  if (!username) return "Username is required.";
+  if (username.length < 3) return "Username must be at least 4` characters.";
+  if (username.length > 20) return "Username cannot exceed 20 characters.";
+  if (!/^[A-Za-z0-9_]+$/.test(username)) {
+    return "Only letters, numbers and underscores are allowed.";
+  }
+  return null;
+}
+
 function SearchIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -89,6 +100,7 @@ export default function Navbar() {
   const [walletOpen, setWalletOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [username, setUsername] = useState("");
+  const [usernameTouched, setUsernameTouched] = useState(false);
   const [isSavingUsername, setIsSavingUsername] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const auth = useAuth();
@@ -144,13 +156,22 @@ export default function Navbar() {
 
   const completeProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setUsernameTouched(true);
+    const usernameError = validateUsername(username);
+    if (usernameError) return;
+
     setIsSavingUsername(true);
     await auth
-      .updateUsername(username)
-      .then(() => setUsername(""))
+      .updateUsername(username.trim())
+      .then(() => {
+        setUsername("");
+        setUsernameTouched(false);
+      })
       .catch(() => undefined)
       .finally(() => setIsSavingUsername(false));
   };
+
+  const usernameError = usernameTouched ? validateUsername(username) : null;
 
   return (
     <header className="site-header fixed z-50 top-0 left-0 w-full p-5 max-[600px]:p-3">
@@ -272,21 +293,40 @@ export default function Navbar() {
                         Choose your username
                       </span>
                       <input
+                        aria-describedby={usernameError ? "username-error" : "username-help"}
+                        aria-invalid={Boolean(usernameError)}
                         autoComplete="username"
                         autoFocus
-                        className="h-11 w-full rounded-xl border border-[var(--line)] bg-[#0d1120] px-3 text-[13px] text-white outline-none transition placeholder:text-[#505a6f] focus:border-[rgba(155,123,255,.5)]"
+                        className={`h-11 w-full rounded-xl border bg-[#0d1120] px-3 text-[13px] text-white outline-none transition placeholder:text-[#505a6f] ${usernameError ? "border-rose-400/60 focus:border-rose-400" : "border-[var(--line)] focus:border-[rgba(155,123,255,.5)]"}`}
                         maxLength={20}
                         minLength={3}
-                        onChange={(event) => setUsername(event.target.value)}
+                        onBlur={() => setUsernameTouched(true)}
+                        onChange={(event) => {
+                          setUsername(event.target.value);
+                          if (!usernameTouched) setUsernameTouched(true);
+                        }}
                         pattern="[A-Za-z0-9_]+"
-                        placeholder="e.g. aqib_creator"
+                        placeholder="e.g. cryptonix_user"
                         required
                         value={username}
                       />
                     </label>
-                    <p className="m-0 px-1 text-[12px] leading-5 text-[#626d82]">
-                      3–20 characters. Letters, numbers and underscores only.
-                    </p>
+                    {usernameError ? (
+                      <p
+                        className="m-0 px-1 text-[12px] leading-5 text-rose-300"
+                        id="username-error"
+                        role="alert"
+                      >
+                        {usernameError}
+                      </p>
+                    ) : (
+                      <p
+                        className="m-0 px-1 text-[12px] leading-5 text-[#626d82]"
+                        id="username-help"
+                      >
+                        3–20 characters. Letters, numbers and underscores only.
+                      </p>
+                    )}
                     {auth.error && (
                       <p className="m-0 px-1 text-[12px] leading-5 text-rose-300" role="alert">
                         {auth.error}
@@ -294,7 +334,7 @@ export default function Navbar() {
                     )}
                     <button
                       className="mt-1 h-11 cursor-pointer rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-4 text-[12px] font-semibold shadow-[0_10px_25px_rgba(105,72,235,.25)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                      disabled={isSavingUsername}
+                      disabled={isSavingUsername || Boolean(validateUsername(username))}
                       type="submit"
                     >
                       {isSavingUsername ? "Saving username…" : "Complete sign in"}
@@ -329,11 +369,9 @@ export default function Navbar() {
                       <WalletIcon />
                       <span>Linked wallets</span>
                     </Link>
-                     <Link
+                    <Link
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] text-[#cbd2df] transition hover:bg-white/[.06] hover:text-white"
-                      href={
-                        auth.user.creatorStatus === "approved" ? "/creator" : "/become-creator"
-                      }
+                      href={auth.user.creatorStatus === "approved" ? "/creator" : "/become-creator"}
                       onClick={() => setProfileOpen(false)}
                       role="menuitem"
                     >

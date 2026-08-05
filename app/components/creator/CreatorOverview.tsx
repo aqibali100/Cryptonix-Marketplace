@@ -41,7 +41,7 @@ function SectionTitle({ kicker, title, action }: { kicker: string; title: string
 export default function CreatorOverview() {
   return (
     <div>
-      <header className="relative mb-5 overflow-hidden rounded-[24px] border border-[rgba(155,123,255,.16)] bg-[radial-gradient(circle_at_85%_20%,rgba(83,232,220,.13),transparent_25%),radial-gradient(circle_at_15%_100%,rgba(141,107,255,.19),transparent_34%),rgba(255,255,255,.018)] p-5 sm:p-6">
+      <header className="relative mb-2 overflow-hidden rounded-[24px] border border-[rgba(155,123,255,.16)] bg-[radial-gradient(circle_at_85%_20%,rgba(83,232,220,.13),transparent_25%),radial-gradient(circle_at_15%_100%,rgba(141,107,255,.19),transparent_34%),rgba(255,255,255,.018)] p-3">
         <div className="pointer-events-none absolute inset-0 opacity-[.07] [background-image:linear-gradient(rgba(255,255,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.12)_1px,transparent_1px)] [background-size:38px_38px]" />
         <div className="relative flex items-end justify-between gap-5 max-[680px]:items-start max-[680px]:flex-col">
           <div>
@@ -58,16 +58,16 @@ export default function CreatorOverview() {
 
       <section className="grid grid-cols-4 gap-3 max-[1180px]:grid-cols-2 max-[560px]:grid-cols-1" aria-label="Creator key metrics">
         {metrics.map((metric) => (
-          <article className="group relative overflow-hidden rounded-[18px] border border-[var(--line)] bg-[rgba(255,255,255,.022)] p-4 transition hover:-translate-y-0.5 hover:border-[rgba(155,123,255,.25)]" key={metric.label}>
+          <article className="group relative overflow-hidden rounded-[18px] border border-[var(--line)] bg-[rgba(255,255,255,.022)] p-3 transition hover:-translate-y-0.5 hover:border-[rgba(155,123,255,.25)]" key={metric.label}>
             <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-[rgba(125,87,228,.08)] blur-2xl" />
             <div className="relative flex items-start justify-between"><span className="text-[10px] text-[#748096]">{metric.label}</span><span className="grid h-8 w-8 place-items-center rounded-[10px] bg-[rgba(155,123,255,.09)] text-[#a993f5]"><MetricIcon name={metric.icon} /></span></div>
-            <strong className="relative mt-4 block text-[22px] tracking-[-.9px]">{metric.value}</strong>
-            <div className="relative mt-2 flex items-center justify-between gap-2"><small className="truncate text-[9px] text-[#596579]">{metric.usd}</small><small className="rounded-full bg-emerald-400/[.07] px-2 py-1 text-[9px] font-semibold text-emerald-300">{metric.change}</small></div>
+            <strong className="relative block text-[22px] tracking-[-.9px]">{metric.value}</strong>
+            <div className="relative flex items-center justify-between gap-2"><small className="truncate text-[9px] text-[#596579]">{metric.usd}</small><small className="rounded-full bg-emerald-400/[.07] px-2 py-1 text-[9px] font-semibold text-emerald-300">{metric.change}</small></div>
           </article>
         ))}
       </section>
 
-      <div className="mt-4 grid grid-cols-[minmax(0,1.55fr)_minmax(270px,.65fr)] gap-4 max-[1050px]:grid-cols-1">
+      <div className="mt-2 grid grid-cols-[minmax(0,1.55fr)_minmax(270px,.65fr)] gap-4 max-[1050px]:grid-cols-1">
         <Panel>
           <SectionTitle kicker="REVENUE ANALYTICS" title="Sales performance" action={<select aria-label="Chart period" className="h-8 rounded-lg border border-[var(--line)] bg-[#0b0f1e] px-2 text-[9px] text-[#9aa5b8]"><option>Last 30 days</option><option>Last 90 days</option></select>} />
           <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2"><div><span className="text-[9px] text-[#68748a]">Gross volume</span><strong className="mt-1 block text-xl">58.32 ETH</strong></div><div className="pb-0.5"><span className="text-[9px] text-[#68748a]">Net revenue</span><strong className="mt-1 block text-[12px] text-[#c9d0dc]">42.84 ETH</strong></div><span className="mb-0.5 rounded-full bg-emerald-400/[.07] px-2 py-1 text-[9px] text-emerald-300">↗ 12.4%</span></div>

@@ -31,6 +31,7 @@ export type AuthUser = {
   creatorStatus: CreatorStatus;
   permissions: Permission[];
   username: string | null;
+  creatorName: string | null;
 };
 type AuthContextValue = {
   user: AuthUser | null;
@@ -114,11 +115,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUsername = useCallback(async (username: string) => {
     setError(null);
     try {
-      const result = await apiRequest<{ user: AuthUser }>("/api/auth/username", {
+      const result = await apiRequest<{
+        status: true;
+        message: string;
+        data: { user: AuthUser };
+      }>("/api/auth/username", {
         method: "POST",
         body: JSON.stringify({ username }),
       });
-      setUser(result.user);
+      setUser(result.data.user);
     } catch (usernameError) {
       const message = usernameError instanceof Error ? usernameError.message : "Username failed.";
       setError(message);

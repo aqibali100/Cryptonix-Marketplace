@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useConnect, useConnection, useDisconnect } from "wagmi";
 import metamaskIcon from "../../../public/assets/wallet-icons/metamask.png";
 import { useAuth } from "../auth/AuthProvider";
+import Link from "next/link";
 
 function friendlyError(error: Error | null) {
   if (!error) return null;
@@ -143,20 +144,21 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
             </button>
             {hasMetaMask === false && (
               <div
-                className="mt-3 rounded-[13px] border border-amber-400/20 bg-amber-400/[.07] p-3 text-xs leading-5 text-amber-200"
+                className="mt-3 rounded-[13px] border border-amber-400/20 bg-amber-400/[.07] p-3 text-xs leading-5 text-white"
                 role="alert"
               >
                 <p className="m-0">
                   MetaMask browser extension is not installed. Install it to connect your wallet.
                 </p>
-                <a
-                  className="mt-2 inline-flex rounded-lg bg-amber-300 px-3 py-1.5 font-semibold text-[#171109] transition hover:bg-amber-200"
+                <Link
+                  className="mt-2 inline-flex rounded-lg bg-amber-300 px-3 py-1.5 font-semibold !text-black transition hover:bg-amber-200"
                   href="https://metamask.io/download/"
+                  style={{ color: "#000000" }}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Install MetaMask ↗
-                </a>
+                  Install MetaMask
+                </Link>
               </div>
             )}
             {friendlyError(error) && (

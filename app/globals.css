@@ -11,6 +11,27 @@
   --cyan: #53e8dc;
 }
 
+/* Keep supporting copy legible and consistent throughout Creator Studio. */
+.creator-workspace .text-\[8px\] {
+  font-size: 11px !important;
+}
+
+.creator-workspace .text-\[9px\] {
+  font-size: 11px !important;
+}
+
+.creator-workspace .text-\[10px\] {
+  font-size: 12px !important;
+}
+
+.creator-workspace .text-\[11px\] {
+  font-size: 13px !important;
+}
+
+.creator-workspace .text-\[12px\] {
+  font-size: 14px !important;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

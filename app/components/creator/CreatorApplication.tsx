@@ -27,7 +27,7 @@ const initialForm = {
 };
 
 const creatorApplicationSchema = z.object({
-  displayName: z.string().trim().min(2, "Enter at least 2 characters.").max(60),
+  displayName: z.string().trim().min(4, "Enter at least 4 characters.").max(60),
   creatorType: z.string().min(1, "Select a creator type."),
   email: z.string().trim().min(1, "Email address is required.").email("Enter a valid email address."),
   country: z.string().trim().min(2, "Enter your country.").max(80),
