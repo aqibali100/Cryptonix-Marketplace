@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import TokenCardSkeleton from "../skeleton/TokenCardSkeleton";
 import { Token } from "@/app/types";
+import { apiRequest } from "@/app/lib/api";
 
 const fallbackTokens: Token[] = [
   {
@@ -113,14 +114,10 @@ export default function TrendingTokens() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/tokens")
-      .then((response) => {
-        if (!response.ok) throw new Error("Market request failed");
-        return response.json() as Promise<{ tokens: Token[] }>;
-      })
-      .then((data) => {
-        if (active && data.tokens.length) {
-          setTokens(data.tokens);
+    apiRequest<{ success: true; data: { tokens: Token[] } }>("/api/tokens")
+      .then((result) => {
+        if (active && result.data.tokens.length) {
+          setTokens(result.data.tokens);
         }
       })
       .catch(() => {

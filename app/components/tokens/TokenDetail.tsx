@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "../../lib/api";
 
 type TokenDetailData = {
   id: string;
@@ -202,13 +203,10 @@ export default function TokenDetail({ id }: { id: string }) {
 
   useEffect(() => {
     let active = true;
-    fetch(`/api/tokens/${encodeURIComponent(id)}`)
-      .then(async (response) => {
-        const body = (await response.json()) as { token?: TokenDetailData; error?: string };
-        if (!response.ok || !body.token)
-          throw new Error(body.error ?? "Token data is unavailable.");
-        return body.token;
-      })
+    apiRequest<{ success: true; data: { token: TokenDetailData } }>(
+      `/api/tokens/${encodeURIComponent(id)}`,
+    )
+      .then((result) => result.data.token)
       .then((data) => active && setToken(data))
       .catch(
         (requestError) =>

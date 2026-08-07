@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiRequest } from "../../lib/api";
 
 type Token = {
   id: string;
@@ -16,9 +17,12 @@ type Token = {
 };
 
 type TokensResponse = {
-  tokens: Token[];
-  hasMore: boolean;
-  total?: number;
+  success: true;
+  data: { tokens: Token[] };
+  meta: {
+    pagination: { page: number; limit: number; hasMore: boolean; total?: number };
+    cache: "HIT" | "MISS" | "STALE";
+  };
 };
 
 function money(value: number, compact = false) {
@@ -70,12 +74,12 @@ export default function TokensDirectory() {
         try {
           const params = new URLSearchParams({ mode: "all", page: String(page) });
           if (query.trim()) params.set("search", query.trim());
-          const response = await fetch(`/api/tokens?${params}`, { signal: controller.signal });
-          if (!response.ok) throw new Error("Could not load live token data.");
-          const data = (await response.json()) as TokensResponse;
-          setTokens(data.tokens);
-          setHasMore(data.hasMore);
-          setTotal(data.total ?? null);
+          const result = await apiRequest<TokensResponse>(`/api/tokens?${params}`, {
+            signal: controller.signal,
+          });
+          setTokens(result.data.tokens);
+          setHasMore(result.meta.pagination.hasMore);
+          setTotal(result.meta.pagination.total ?? null);
         } catch (requestError) {
           if (requestError instanceof DOMException && requestError.name === "AbortError") return;
           setError(requestError instanceof Error ? requestError.message : "Could not load tokens.");

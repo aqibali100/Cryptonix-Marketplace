@@ -115,12 +115,13 @@ export default function Navbar() {
   const walletLabel = connection.isConnected
     ? balance.data
       ? balance.data.value === BigInt(0)
-        ? "$0.00"
+        ? `0 ${balance.data.symbol}`
         : `${Number(formatUnits(balance.data.value, balance.data.decimals)).toLocaleString(undefined, { maximumFractionDigits: 4 })} ${balance.data.symbol}`
       : balance.isLoading
         ? "•••"
         : "—"
     : "Connect Wallet";
+  const compactNetworkLabel = connection.chain?.name ?? "Network";
   const visibleNavigation = navigation;
   const isActiveLink = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -231,7 +232,14 @@ export default function Navbar() {
             }
           >
             <WalletIcon />
-            <span className="wallet-label truncate">{walletLabel}</span>
+            <span className="wallet-label min-w-0 leading-tight">
+              <span className="block truncate">{walletLabel}</span>
+              {connection.isConnected && (
+                <span className="block truncate text-[9px] font-medium text-[#8f99ad]">
+                  {compactNetworkLabel}
+                </span>
+              )}
+            </span>
           </button>
           <div className="relative" ref={profileRef}>
             <button
