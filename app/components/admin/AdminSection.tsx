@@ -1,0 +1,2039 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { adminGraphql } from "../../lib/admin-auth";
+import {
+  ADMIN_USER_DETAILS_QUERY,
+  ADMIN_USERS_QUERY,
+  UPDATE_ADMIN_USER_STATUS_MUTATION,
+  adminUsersFilterSchema,
+  type AdminManagedUser,
+  type AdminUserDetails,
+  type AdminUserDetailsPayload,
+  type AdminUserStatusPayload,
+  type AdminUsersPayload,
+} from "../../lib/admin-users";
+import { useAdminSession } from "./AdminGuard";
+import AdminIcon from "./AdminIcon";
+import type { AdminIconName, AdminSectionName } from "./admin-navigation";
+
+type Tone = "violet" | "cyan" | "green" | "amber" | "rose";
+type Metric = { label: string; value: string; change: string; tone: Tone };
+type Row = { primary: string; secondary: string; values: string[]; status: string; tone: Tone };
+type ModuleConfig = {
+  title: string;
+  description: string;
+  action: string;
+  metrics: Metric[];
+  columns: string[];
+  rows: Row[];
+};
+
+const toneClasses: Record<Tone, { text: string; bg: string; border: string }> = {
+  violet: { text: "text-[#b7a4ff]", bg: "bg-violet-400/[.08]", border: "border-violet-300/[.14]" },
+  cyan: { text: "text-cyan-300", bg: "bg-cyan-400/[.07]", border: "border-cyan-300/[.13]" },
+  green: {
+    text: "text-emerald-300",
+    bg: "bg-emerald-400/[.07]",
+    border: "border-emerald-300/[.13]",
+  },
+  amber: { text: "text-amber-300", bg: "bg-amber-400/[.07]", border: "border-amber-300/[.13]" },
+  rose: { text: "text-rose-300", bg: "bg-rose-400/[.07]", border: "border-rose-300/[.13]" },
+};
+
+const configs: Record<Exclude<AdminSectionName, "overview">, ModuleConfig> = {
+  users: {
+    title: "User Management",
+    description: "Review accounts, wallet activity and platform access from one secure workspace.",
+    action: "Export users",
+    metrics: [
+      { label: "Total users", value: "24,892", change: "+8.4% this month", tone: "violet" },
+      { label: "Active today", value: "3,641", change: "14.6% of total", tone: "cyan" },
+      { label: "New this week", value: "1,284", change: "+12.1%", tone: "green" },
+      { label: "Restricted", value: "38", change: "7 need review", tone: "rose" },
+    ],
+    columns: ["Account", "Wallet", "Role", "Joined", "Status"],
+    rows: [
+      {
+        primary: "Maya Chen",
+        secondary: "@maya.collects",
+        values: ["0x71F2…8A40", "Collector", "Aug 10, 2026"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Alex Rivera",
+        secondary: "@alexr",
+        values: ["0x9B31…F122", "Creator", "Aug 09, 2026"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Noah Williams",
+        secondary: "@noahw",
+        values: ["0x32A0…91BC", "Collector", "Aug 08, 2026"],
+        status: "Review",
+        tone: "amber",
+      },
+      {
+        primary: "Lina Park",
+        secondary: "@linap",
+        values: ["0xD190…55A1", "Collector", "Aug 07, 2026"],
+        status: "Suspended",
+        tone: "rose",
+      },
+    ],
+  },
+  creators: {
+    title: "Creator Management",
+    description: "Verify creative identities, review applications and monitor creator health.",
+    action: "Review applications",
+    metrics: [
+      { label: "Verified creators", value: "1,248", change: "+54 this month", tone: "violet" },
+      { label: "Applications", value: "86", change: "21 high priority", tone: "amber" },
+      { label: "Active creators", value: "892", change: "71.4% active", tone: "green" },
+      { label: "Flagged", value: "14", change: "3 escalated", tone: "rose" },
+    ],
+    columns: ["Creator", "Collections", "Total volume", "Applied", "Verification"],
+    rows: [
+      {
+        primary: "Aqib Ali",
+        secondary: "Digital artist · Pakistan",
+        values: ["6 collections", "42.8 ETH", "Aug 10, 2026"],
+        status: "Verified",
+        tone: "green",
+      },
+      {
+        primary: "Studio Kairo",
+        secondary: "3D collective · Japan",
+        values: ["3 collections", "18.2 ETH", "Aug 09, 2026"],
+        status: "Pending",
+        tone: "amber",
+      },
+      {
+        primary: "Nova Frames",
+        secondary: "Motion artist · UK",
+        values: ["8 collections", "91.5 ETH", "Aug 07, 2026"],
+        status: "Verified",
+        tone: "green",
+      },
+      {
+        primary: "Pixel Loom",
+        secondary: "Generative art · USA",
+        values: ["1 collection", "2.4 ETH", "Aug 05, 2026"],
+        status: "Needs info",
+        tone: "rose",
+      },
+    ],
+  },
+  nfts: {
+    title: "NFT Management",
+    description: "Inspect metadata, ownership, visibility and mint health across every network.",
+    action: "Export assets",
+    metrics: [
+      { label: "Total NFTs", value: "84,210", change: "+2,041 this week", tone: "violet" },
+      { label: "Minted", value: "81,924", change: "97.3% success", tone: "green" },
+      { label: "Awaiting mint", value: "1,846", change: "Normal queue", tone: "amber" },
+      { label: "Failed", value: "440", change: "64 need review", tone: "rose" },
+    ],
+    columns: ["Asset", "Creator", "Network", "Token", "Status"],
+    rows: [
+      {
+        primary: "Neon Tide #827",
+        secondary: "Aether Dimensions",
+        values: ["Aqib Ali", "Base Sepolia", "ERC-721 · #827"],
+        status: "Minted",
+        tone: "green",
+      },
+      {
+        primary: "Synthetic Bloom #41",
+        secondary: "Synthetic Nature",
+        values: ["Nova Frames", "Ethereum", "ERC-1155 · #41"],
+        status: "Minted",
+        tone: "green",
+      },
+      {
+        primary: "Prismatic Form #12",
+        secondary: "Prismatic Forms",
+        values: ["Studio Kairo", "Polygon Amoy", "ERC-721"],
+        status: "Awaiting",
+        tone: "amber",
+      },
+      {
+        primary: "Void Signal #08",
+        secondary: "Signal Lost",
+        values: ["Pixel Loom", "Base Sepolia", "ERC-721"],
+        status: "Failed",
+        tone: "rose",
+      },
+    ],
+  },
+  collections: {
+    title: "Collections",
+    description: "Review verified collections, marketplace reach and authenticity signals.",
+    action: "Feature collection",
+    metrics: [
+      { label: "Collections", value: "3,842", change: "+126 this month", tone: "violet" },
+      { label: "Verified", value: "1,106", change: "28.7% verified", tone: "green" },
+      { label: "Total volume", value: "18.4K ETH", change: "+6.2%", tone: "cyan" },
+      { label: "Under review", value: "29", change: "8 priority", tone: "amber" },
+    ],
+    columns: ["Collection", "Creator", "Items", "Volume", "Status"],
+    rows: [
+      {
+        primary: "Aether Dimensions",
+        secondary: "Floor 1.72 ETH",
+        values: ["Aqib Ali", "842", "2,482 ETH"],
+        status: "Verified",
+        tone: "green",
+      },
+      {
+        primary: "Synthetic Nature",
+        secondary: "Floor 0.94 ETH",
+        values: ["Nova Frames", "510", "1,921 ETH"],
+        status: "Verified",
+        tone: "green",
+      },
+      {
+        primary: "Prismatic Forms",
+        secondary: "Floor 2.10 ETH",
+        values: ["Studio Kairo", "184", "728 ETH"],
+        status: "Review",
+        tone: "amber",
+      },
+      {
+        primary: "Signal Lost",
+        secondary: "Floor 0.18 ETH",
+        values: ["Pixel Loom", "92", "84 ETH"],
+        status: "Flagged",
+        tone: "rose",
+      },
+    ],
+  },
+  listings: {
+    title: "Listings & Auctions",
+    description: "Monitor live inventory, bids, expiry and abnormal marketplace activity.",
+    action: "Export activity",
+    metrics: [
+      { label: "Active listings", value: "12,492", change: "+4.7% today", tone: "violet" },
+      { label: "Live auctions", value: "628", change: "184 ending soon", tone: "cyan" },
+      { label: "Sales today", value: "1,042", change: "894.2 ETH", tone: "green" },
+      { label: "Stale listings", value: "74", change: "Needs sync", tone: "amber" },
+    ],
+    columns: ["Asset", "Seller", "Type", "Price / top bid", "Status"],
+    rows: [
+      {
+        primary: "Neon Tide #827",
+        secondary: "Aether Dimensions",
+        values: ["0x71F2…8A40", "Fixed price", "2.40 ETH"],
+        status: "Listed",
+        tone: "green",
+      },
+      {
+        primary: "Lucid Matter #19",
+        secondary: "Matter State",
+        values: ["0x2A17…C842", "Auction", "8.12 ETH"],
+        status: "3h left",
+        tone: "amber",
+      },
+      {
+        primary: "Bloom #41",
+        secondary: "Synthetic Nature",
+        values: ["0xE109…7F91", "Auction", "1.08 ETH"],
+        status: "12 bids",
+        tone: "cyan",
+      },
+      {
+        primary: "Void Signal #08",
+        secondary: "Signal Lost",
+        values: ["0x18BC…2A01", "Fixed price", "0.20 ETH"],
+        status: "Stale",
+        tone: "rose",
+      },
+    ],
+  },
+  transactions: {
+    title: "Transactions",
+    description: "Trace confirmations, contract calls and reconciliation status in real time.",
+    action: "Export ledger",
+    metrics: [
+      { label: "Transactions", value: "1.28M", change: "+18.2K today", tone: "violet" },
+      { label: "Confirmed", value: "99.72%", change: "Healthy", tone: "green" },
+      { label: "Pending", value: "284", change: "Median 8 sec", tone: "amber" },
+      { label: "Failed", value: "67", change: "12 mismatches", tone: "rose" },
+    ],
+    columns: ["Transaction", "Type", "Network", "Value", "Status"],
+    rows: [
+      {
+        primary: "0x6ddb…0aac",
+        secondary: "3 minutes ago",
+        values: ["Mint", "Base Sepolia", "0.0002 ETH"],
+        status: "Confirmed",
+        tone: "green",
+      },
+      {
+        primary: "0xb907…feb3",
+        secondary: "7 minutes ago",
+        values: ["Mint", "Base Sepolia", "0.0002 ETH"],
+        status: "Confirmed",
+        tone: "green",
+      },
+      {
+        primary: "0x92fa…184c",
+        secondary: "9 minutes ago",
+        values: ["Settlement", "Ethereum", "4.28 ETH"],
+        status: "Pending",
+        tone: "amber",
+      },
+      {
+        primary: "0x81bd…73a2",
+        secondary: "14 minutes ago",
+        values: ["Listing", "Polygon Amoy", "0 ETH"],
+        status: "Mismatch",
+        tone: "rose",
+      },
+    ],
+  },
+  moderation: {
+    title: "Moderation Center",
+    description: "Prioritize reports, capture evidence and resolve marketplace safety cases.",
+    action: "Create case",
+    metrics: [
+      { label: "Open cases", value: "124", change: "12 high priority", tone: "rose" },
+      { label: "In review", value: "46", change: "8 assigned to you", tone: "amber" },
+      { label: "Resolved today", value: "38", change: "Avg. 2.4 hours", tone: "green" },
+      { label: "SLA health", value: "96.8%", change: "+1.2%", tone: "cyan" },
+    ],
+    columns: ["Case", "Category", "Reporter", "Assigned", "Priority"],
+    rows: [
+      {
+        primary: "#MOD-2841 · Signal Lost",
+        secondary: "Reported 18 min ago",
+        values: ["Copyright", "@originalframes", "Sarah K."],
+        status: "Critical",
+        tone: "rose",
+      },
+      {
+        primary: "#MOD-2840 · User 0x71F2",
+        secondary: "Reported 42 min ago",
+        values: ["Impersonation", "@mayac", "Omar A."],
+        status: "High",
+        tone: "amber",
+      },
+      {
+        primary: "#MOD-2839 · Bloom #18",
+        secondary: "Reported 1 hour ago",
+        values: ["Explicit content", "System", "Unassigned"],
+        status: "Medium",
+        tone: "cyan",
+      },
+      {
+        primary: "#MOD-2838 · Kairo Labs",
+        secondary: "Reported 2 hours ago",
+        values: ["Spam", "@noahw", "Lina P."],
+        status: "Low",
+        tone: "violet",
+      },
+    ],
+  },
+  ipfs: {
+    title: "IPFS & Metadata",
+    description: "Validate content availability, gateway performance and metadata integrity.",
+    action: "Run health scan",
+    metrics: [
+      { label: "Pinned assets", value: "168.4K", change: "2.8 TB stored", tone: "violet" },
+      { label: "Gateway uptime", value: "99.98%", change: "142 ms latency", tone: "green" },
+      { label: "Metadata valid", value: "99.4%", change: "1,012 warnings", tone: "cyan" },
+      { label: "Broken assets", value: "38", change: "14 recovered", tone: "rose" },
+    ],
+    columns: ["CID / asset", "Content", "Gateway", "Last checked", "Health"],
+    rows: [
+      {
+        primary: "bafybei…7p2k",
+        secondary: "Neon Tide #827",
+        values: ["Image · 4.2 MB", "Primary", "30 sec ago"],
+        status: "Available",
+        tone: "green",
+      },
+      {
+        primary: "bafybei…1x9m",
+        secondary: "Synthetic Bloom #41",
+        values: ["Metadata · 2 KB", "Primary", "1 min ago"],
+        status: "Available",
+        tone: "green",
+      },
+      {
+        primary: "bafybei…8q4n",
+        secondary: "Prismatic Form #12",
+        values: ["Image · 8.1 MB", "Fallback", "4 min ago"],
+        status: "Degraded",
+        tone: "amber",
+      },
+      {
+        primary: "bafybei…3v7c",
+        secondary: "Void Signal #08",
+        values: ["Image · unknown", "Unavailable", "8 min ago"],
+        status: "Broken",
+        tone: "rose",
+      },
+    ],
+  },
+  notifications: {
+    title: "Notifications",
+    description: "Manage platform alerts, delivery channels and audience communication.",
+    action: "New broadcast",
+    metrics: [
+      { label: "Sent today", value: "48,210", change: "+8.2%", tone: "violet" },
+      { label: "Delivery rate", value: "98.7%", change: "Healthy", tone: "green" },
+      { label: "Scheduled", value: "12", change: "Next in 2h", tone: "cyan" },
+      { label: "Failed", value: "284", change: "Retry queued", tone: "rose" },
+    ],
+    columns: ["Campaign", "Channel", "Audience", "Delivery", "Status"],
+    rows: [
+      {
+        primary: "Weekly creator digest",
+        secondary: "Aug 10, 10:00 AM",
+        values: ["Email + In-app", "1,248 creators", "98.9%"],
+        status: "Delivered",
+        tone: "green",
+      },
+      {
+        primary: "Auction ending alerts",
+        secondary: "Continuous trigger",
+        values: ["Push + In-app", "Dynamic", "99.4%"],
+        status: "Active",
+        tone: "cyan",
+      },
+      {
+        primary: "Network maintenance",
+        secondary: "Aug 12, 02:00 AM",
+        values: ["All channels", "24,892 users", "—"],
+        status: "Scheduled",
+        tone: "amber",
+      },
+      {
+        primary: "Failed mint follow-up",
+        secondary: "Aug 09, 06:00 PM",
+        values: ["Email", "440 users", "91.2%"],
+        status: "Review",
+        tone: "rose",
+      },
+    ],
+  },
+  revenue: {
+    title: "Revenue",
+    description: "Track marketplace fees, network contribution and financial performance.",
+    action: "Download report",
+    metrics: [
+      { label: "Gross volume", value: "$4.82M", change: "+12.4% MoM", tone: "violet" },
+      { label: "Platform revenue", value: "$120.6K", change: "+9.8% MoM", tone: "green" },
+      { label: "Today", value: "$8,942", change: "+4.1%", tone: "cyan" },
+      { label: "Refunds", value: "$1,284", change: "0.03% of volume", tone: "amber" },
+    ],
+    columns: ["Period / network", "Sales volume", "Fees", "Refunds", "Performance"],
+    rows: [
+      {
+        primary: "Base",
+        secondary: "August 2026",
+        values: ["$2.41M", "$60.2K", "$420"],
+        status: "+14.2%",
+        tone: "green",
+      },
+      {
+        primary: "Ethereum",
+        secondary: "August 2026",
+        values: ["$1.82M", "$45.5K", "$692"],
+        status: "+8.7%",
+        tone: "green",
+      },
+      {
+        primary: "Polygon",
+        secondary: "August 2026",
+        values: ["$590K", "$14.9K", "$172"],
+        status: "+3.1%",
+        tone: "cyan",
+      },
+      {
+        primary: "Cross-network",
+        secondary: "Pending reconciliation",
+        values: ["$18.4K", "$460", "$0"],
+        status: "Review",
+        tone: "amber",
+      },
+    ],
+  },
+  royalties: {
+    title: "Royalties",
+    description: "Monitor creator royalty obligations, distributions and compliance.",
+    action: "Export royalties",
+    metrics: [
+      { label: "Paid royalties", value: "$842.6K", change: "Lifetime", tone: "violet" },
+      { label: "This month", value: "$48.2K", change: "+11.8%", tone: "green" },
+      { label: "Creators paid", value: "1,106", change: "98.3% coverage", tone: "cyan" },
+      { label: "Exceptions", value: "18", change: "$2,410 held", tone: "amber" },
+    ],
+    columns: ["Creator", "Collection", "Rate", "Earned", "Payout"],
+    rows: [
+      {
+        primary: "Aqib Ali",
+        secondary: "0xB2C…19F",
+        values: ["Aether Dimensions", "7.5%", "$12,482"],
+        status: "Paid",
+        tone: "green",
+      },
+      {
+        primary: "Nova Frames",
+        secondary: "0x91A…72E",
+        values: ["Synthetic Nature", "10%", "$8,194"],
+        status: "Paid",
+        tone: "green",
+      },
+      {
+        primary: "Studio Kairo",
+        secondary: "0x4D2…8C1",
+        values: ["Prismatic Forms", "5%", "$3,842"],
+        status: "Processing",
+        tone: "cyan",
+      },
+      {
+        primary: "Pixel Loom",
+        secondary: "0xC20…4F7",
+        values: ["Signal Lost", "8%", "$1,026"],
+        status: "On hold",
+        tone: "amber",
+      },
+    ],
+  },
+  settlements: {
+    title: "Settlements",
+    description: "Reconcile seller payouts, fees and settlement exceptions.",
+    action: "Run settlement",
+    metrics: [
+      { label: "Settled today", value: "$284.9K", change: "1,042 orders", tone: "green" },
+      { label: "Processing", value: "$42.1K", change: "184 orders", tone: "cyan" },
+      { label: "Next batch", value: "02:14:36", change: "Automated", tone: "violet" },
+      { label: "Exceptions", value: "12", change: "$8.4K held", tone: "rose" },
+    ],
+    columns: ["Settlement", "Recipient", "Gross", "Net payout", "Status"],
+    rows: [
+      {
+        primary: "STL-20260810-0942",
+        secondary: "Batch #842",
+        values: ["0x71F2…8A40", "$4,820", "$4,699.50"],
+        status: "Settled",
+        tone: "green",
+      },
+      {
+        primary: "STL-20260810-0941",
+        secondary: "Batch #842",
+        values: ["0x91A0…72E1", "$2,184", "$2,129.40"],
+        status: "Settled",
+        tone: "green",
+      },
+      {
+        primary: "STL-20260810-0940",
+        secondary: "Batch #843",
+        values: ["0x4D20…8C12", "$8,410", "$8,199.75"],
+        status: "Processing",
+        tone: "cyan",
+      },
+      {
+        primary: "STL-20260810-0939",
+        secondary: "Manual review",
+        values: ["0xC201…4F72", "$1,290", "$1,257.75"],
+        status: "On hold",
+        tone: "rose",
+      },
+    ],
+  },
+  networks: {
+    title: "Networks & Contracts",
+    description: "Observe RPC health, deployments, gas and contract versions.",
+    action: "Add network",
+    metrics: [
+      { label: "Active networks", value: "4", change: "All operational", tone: "green" },
+      { label: "Contracts", value: "12", change: "3 per network", tone: "violet" },
+      { label: "Avg. RPC latency", value: "142 ms", change: "Within target", tone: "cyan" },
+      { label: "Alerts", value: "2", change: "Non-critical", tone: "amber" },
+    ],
+    columns: ["Network", "Chain ID", "Contracts", "RPC latency", "Health"],
+    rows: [
+      {
+        primary: "Base Sepolia",
+        secondary: "Testnet · Active",
+        values: ["84532", "3 deployed", "91 ms"],
+        status: "Operational",
+        tone: "green",
+      },
+      {
+        primary: "Ethereum Sepolia",
+        secondary: "Testnet · Active",
+        values: ["11155111", "3 deployed", "184 ms"],
+        status: "Operational",
+        tone: "green",
+      },
+      {
+        primary: "Polygon Amoy",
+        secondary: "Testnet · Active",
+        values: ["80002", "3 deployed", "122 ms"],
+        status: "Operational",
+        tone: "green",
+      },
+      {
+        primary: "Ethereum",
+        secondary: "Mainnet · Restricted",
+        values: ["1", "3 deployed", "171 ms"],
+        status: "Standby",
+        tone: "amber",
+      },
+    ],
+  },
+  admins: {
+    title: "Admins & Roles",
+    description: "Control privileged access with scoped roles and secure review workflows.",
+    action: "Invite admin",
+    metrics: [
+      { label: "Administrators", value: "18", change: "6 roles", tone: "violet" },
+      { label: "Active now", value: "7", change: "Across 4 regions", tone: "green" },
+      { label: "MFA coverage", value: "100%", change: "Required", tone: "cyan" },
+      { label: "Access reviews", value: "3", change: "Due this week", tone: "amber" },
+    ],
+    columns: ["Administrator", "Role", "Scope", "Last active", "Access"],
+    rows: [
+      {
+        primary: "Sarah Ahmed",
+        secondary: "sarah@cryptonix.io",
+        values: ["Super Admin", "Full platform", "Now"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Omar Khan",
+        secondary: "omar@cryptonix.io",
+        values: ["Operations", "Users, NFTs, Ops", "8 min ago"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Lina Park",
+        secondary: "lina@cryptonix.io",
+        values: ["Finance", "Finance modules", "2 hours ago"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "James Cole",
+        secondary: "james@cryptonix.io",
+        values: ["Moderator", "Trust & Safety", "Aug 07, 2026"],
+        status: "Review due",
+        tone: "amber",
+      },
+    ],
+  },
+  audit: {
+    title: "Audit Logs",
+    description: "Review immutable records of every privileged platform action.",
+    action: "Export audit log",
+    metrics: [
+      { label: "Events today", value: "8,492", change: "+4.2%", tone: "violet" },
+      { label: "Admin actions", value: "624", change: "18 administrators", tone: "cyan" },
+      { label: "Sensitive actions", value: "42", change: "All verified", tone: "amber" },
+      { label: "Anomalies", value: "3", change: "Under review", tone: "rose" },
+    ],
+    columns: ["Event", "Administrator", "Target", "IP / device", "Result"],
+    rows: [
+      {
+        primary: "Creator verification approved",
+        secondary: "EVT-91A204 · 2 min ago",
+        values: ["Sarah Ahmed", "Creator · Aqib Ali", "103.12.••.42 · Chrome"],
+        status: "Success",
+        tone: "green",
+      },
+      {
+        primary: "NFT visibility changed",
+        secondary: "EVT-91A203 · 8 min ago",
+        values: ["Omar Khan", "NFT · Signal Lost #08", "185.4.••.19 · Safari"],
+        status: "Success",
+        tone: "green",
+      },
+      {
+        primary: "Platform fee viewed",
+        secondary: "EVT-91A202 · 14 min ago",
+        values: ["Lina Park", "Finance settings", "91.18.••.82 · Chrome"],
+        status: "Success",
+        tone: "green",
+      },
+      {
+        primary: "Role permission denied",
+        secondary: "EVT-91A201 · 20 min ago",
+        values: ["James Cole", "Network settings", "71.22.••.10 · Firefox"],
+        status: "Denied",
+        tone: "rose",
+      },
+    ],
+  },
+  settings: {
+    title: "Platform Settings",
+    description: "Configure marketplace behavior, limits and operational safeguards.",
+    action: "Review changes",
+    metrics: [
+      { label: "Environment", value: "Testnet", change: "Base Sepolia primary", tone: "violet" },
+      { label: "Platform fee", value: "2.50%", change: "Last changed Jun 12", tone: "cyan" },
+      { label: "Feature flags", value: "18 / 21", change: "3 disabled", tone: "green" },
+      { label: "Pending changes", value: "2", change: "Approval required", tone: "amber" },
+    ],
+    columns: ["Setting group", "Configuration", "Last changed", "Changed by", "State"],
+    rows: [
+      {
+        primary: "Marketplace fees",
+        secondary: "Trading and settlement",
+        values: ["2.50% platform fee", "Jun 12, 2026", "Sarah Ahmed"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Minting controls",
+        secondary: "Network availability",
+        values: ["3 testnets enabled", "Aug 08, 2026", "Omar Khan"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Upload policy",
+        secondary: "Media limits",
+        values: ["50 MB · 4 formats", "Aug 01, 2026", "Sarah Ahmed"],
+        status: "Active",
+        tone: "green",
+      },
+      {
+        primary: "Maintenance window",
+        secondary: "Scheduled operations",
+        values: ["Aug 12 · 02:00 UTC", "Aug 10, 2026", "Omar Khan"],
+        status: "Scheduled",
+        tone: "amber",
+      },
+    ],
+  },
+};
+
+function Card({ children, className = "" }: { children?: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`rounded-[20px] border border-white/[.075] bg-[rgba(12,16,31,.7)] shadow-[0_18px_55px_rgba(0,0,0,.12)] backdrop-blur-xl ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function AdminFilterDropdown({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative min-w-[150px] max-[560px]:flex-1" ref={ref}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={`group flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition ${open ? "border-[rgba(155,123,255,.35)] bg-[linear-gradient(110deg,rgba(141,107,255,.12),rgba(74,221,209,.03))]" : "border-white/[.075] bg-white/[.025] hover:border-[rgba(155,123,255,.24)] hover:bg-white/[.045]"}`}
+      >
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${value && value !== "30_DAYS" && value !== "NEWEST" ? "bg-[#9b7cf5] shadow-[0_0_8px_rgba(155,124,245,.65)]" : "bg-[#465166]"}`}
+        />
+        <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-[#aeb7c8]">
+          {selected.label}
+        </span>
+        <AdminIcon
+          name="chevronDown"
+          className={`h-3.5 w-3.5 shrink-0 text-[#657087] transition ${open ? "rotate-180 text-[#aa95f6]" : "group-hover:text-[#9da8ba]"}`}
+        />
+      </button>
+      {open ? (
+        <div
+          className="absolute right-0 top-[calc(100%+8px)] z-50 w-max min-w-full max-w-[230px] overflow-hidden rounded-[16px] border border-[rgba(155,123,255,.24)] bg-[rgba(8,11,23,.98)] p-2 shadow-[0_22px_60px_rgba(0,0,0,.55),inset_0_1px_rgba(255,255,255,.04)] backdrop-blur-2xl"
+          role="listbox"
+          aria-label={label}
+        >
+          <div className="max-h-[245px] space-y-1 overflow-y-auto admin-sidebar-scroll">
+            {options.map((option) => {
+              const active = option.value === value;
+              return (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full cursor-pointer items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left text-[10px] transition ${active ? "border-[rgba(155,123,255,.2)] bg-[rgba(155,123,255,.1)] text-[#d8ceff]" : "border-transparent text-[#aab3c4] hover:border-white/[.05] hover:bg-white/[.045] hover:text-white"}`}
+                >
+                  <span
+                    className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${active ? "border-[#8d6bff] bg-[#8d6bff] text-white" : "border-[#3f485b]"}`}
+                  >
+                    {active ? (
+                      <svg
+                        className="h-2.5 w-2.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="m5 12 4 4 10-10" />
+                      </svg>
+                    ) : null}
+                  </span>
+                  <span className="truncate">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Header({ config }: { config: ModuleConfig }) {
+  return (
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 className="m-0 text-[24px] font-semibold tracking-[-.7px] sm:text-[28px]">
+          {config.title}
+        </h1>
+        <p className="m-0 mt-2 max-w-[680px] text-[11px] leading-5 text-[#748096]">
+          {config.description}
+        </p>
+      </div>
+      <button className="flex h-10 items-center gap-2 rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849e8)] px-3 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(104,73,232,.22)] transition hover:-translate-y-0.5">
+        {config.action}
+        <AdminIcon name="external" className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function Metrics({ metrics }: { metrics: Metric[] }) {
+  return (
+    <div className="mb-4 grid grid-cols-4 gap-3 max-[1050px]:grid-cols-2 max-[540px]:grid-cols-1">
+      {metrics.map((metric, index) => (
+        <Card className="relative overflow-hidden p-3" key={metric.label}>
+          <span
+            className={`absolute -right-5 -top-5 h-20 w-20 rounded-full blur-2xl ${toneClasses[metric.tone].bg}`}
+          />
+          <div className="flex items-start justify-between">
+            <span className="text-[10px] text-[#707c91]">{metric.label}</span>
+            <span
+              className={`grid h-7 w-7 place-items-center rounded-lg ${toneClasses[metric.tone].bg} ${toneClasses[metric.tone].text}`}
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d={index % 2 ? "m4 14 5-5 4 4 7-7" : "M4 18V9M10 18V5M16 18v-7M22 18H2"} />
+              </svg>
+            </span>
+          </div>
+          <strong className="block text-[21px] tracking-[-.4px]">{metric.value}</strong>
+          <span className={`block text-[9px] ${toneClasses[metric.tone].text}`}>
+            {metric.change}
+          </span>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function DataTable({ config }: { config: ModuleConfig }) {
+  const [query, setQuery] = useState("");
+  const rows = config.rows.filter((row) =>
+    `${row.primary} ${row.secondary} ${row.values.join(" ")} ${row.status}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/[.06] p-3">
+        <label className="relative min-w-[220px] flex-1">
+          <AdminIcon
+            name="search"
+            className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5d687c]"
+          />
+          <input
+            className="h-10 w-full rounded-xl border border-white/[.07] bg-[#080b16] pl-9 pr-3 text-[10px] outline-none placeholder:text-[#515c70] focus:border-violet-400/30"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={`Search ${config.title.toLowerCase()}…`}
+          />
+        </label>
+        <button className="flex h-10 items-center gap-2 rounded-xl border border-white/[.075] bg-white/[.025] px-3 text-[10px] text-[#9da7b9] hover:bg-white/[.05]">
+          All statuses
+          <AdminIcon name="chevronDown" className="h-3.5 w-3.5 text-[#657187]" />
+        </button>
+        <button className="flex h-10 items-center gap-2 rounded-xl border border-white/[.075] bg-white/[.025] px-3 text-[10px] text-[#9da7b9] hover:bg-white/[.05]">
+          Last 30 days
+          <AdminIcon name="chevronDown" className="h-3.5 w-3.5 text-[#657187]" />
+        </button>
+        <button
+          className="grid h-10 w-10 place-items-center rounded-xl border border-white/[.075] bg-white/[.025] text-[#8995a8]"
+          aria-label="More filters"
+        >
+          <AdminIcon name="filter" className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="overflow-x-auto admin-sidebar-scroll">
+        <table className="w-full min-w-[820px] border-collapse text-left">
+          <thead>
+            <tr>
+              {config.columns.map((column) => (
+                <th
+                  key={column}
+                  className="border-b border-white/[.055] bg-white/[.012] p-3 text-[8px] font-bold uppercase tracking-[1px] text-[#505c70]"
+                >
+                  {column}
+                </th>
+              ))}
+              <th className="border-b border-white/[.055] bg-white/[.012] p-3 text-right text-[8px] font-bold uppercase tracking-[1px] text-[#505c70]">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.primary}
+                className="group border-b border-white/[.045] last:border-0 hover:bg-white/[.018]"
+              >
+                <td className="p-3">
+                  <strong className="block text-[10px] font-semibold text-[#dde2ec]">
+                    {row.primary}
+                  </strong>
+                  <span className="mt-1 block text-[9px] text-[#606c81]">{row.secondary}</span>
+                </td>
+                {row.values.map((value, index) => (
+                  <td key={`${row.primary}-${index}`} className="p-3 text-[10px] text-[#8d98aa]">
+                    {value}
+                  </td>
+                ))}
+                <td className="p-3">
+                  <span
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] ${toneClasses[row.tone].bg} ${toneClasses[row.tone].border} ${toneClasses[row.tone].text}`}
+                  >
+                    {row.status}
+                  </span>
+                </td>
+                <td className="p-10 text-right">
+                  <button
+                    className="grid h-8 w-8 place-items-center rounded-lg border border-white/[.07] bg-white/[.025] text-[#717c90] opacity-70 hover:bg-white/[.06] hover:text-white group-hover:opacity-100"
+                    aria-label={`Actions for ${row.primary}`}
+                  >
+                    <AdminIcon name="more" className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[.055] p-3">
+        <span className="text-[9px] text-[#5d687c]">
+          Showing {rows.length} of {config.metrics[0].value} records
+        </span>
+        <div className="flex gap-1">
+          <button className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#677287]">
+            <AdminIcon name="chevronLeft" className="h-3 w-3" />
+            Previous
+          </button>
+          <button className="h-8 min-w-8 rounded-lg bg-violet-500 text-[9px] text-white">1</button>
+          <button className="h-8 min-w-8 rounded-lg border border-white/[.07] text-[9px] text-[#8994a8]">
+            2
+          </button>
+          <button className="h-8 min-w-8 rounded-lg border border-white/[.07] text-[9px] text-[#8994a8]">
+            3
+          </button>
+          <button className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8]">
+            Next
+            <AdminIcon name="chevronRight" className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function AdminUserActionMenu({
+  user,
+  busy,
+  onViewDetails,
+  onStatus,
+}: {
+  user: AdminManagedUser;
+  busy: boolean;
+  onViewDetails: () => void;
+  onStatus: (status: "ACTIVE" | "REVIEW" | "SUSPENDED") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!triggerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    const closeOnViewportChange = () => setOpen(false);
+    document.addEventListener("mousedown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    window.addEventListener("resize", closeOnViewportChange);
+    window.addEventListener("scroll", closeOnViewportChange, true);
+    return () => {
+      document.removeEventListener("mousedown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+      window.removeEventListener("resize", closeOnViewportChange);
+      window.removeEventListener("scroll", closeOnViewportChange, true);
+    };
+  }, [open]);
+
+  const close = () => setOpen(false);
+  const toggleMenu = () => {
+    if (open) {
+      close();
+      return;
+    }
+
+    const trigger = triggerRef.current?.getBoundingClientRect();
+    if (!trigger) return;
+
+    const estimatedMenuHeight = user.role === "Creator" ? 342 : 304;
+    const spaceBelow = window.innerHeight - trigger.bottom - 8;
+    const top =
+      spaceBelow >= estimatedMenuHeight
+        ? trigger.bottom + 8
+        : Math.max(8, trigger.top - estimatedMenuHeight - 8);
+
+    setMenuPosition({
+      top,
+      right: Math.max(8, window.innerWidth - trigger.right),
+    });
+    setOpen(true);
+  };
+  const itemClass =
+    "flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[10px] text-[#b7c0cf] transition hover:bg-white/[.055] hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+
+  return (
+    <div className="relative ml-auto w-fit" ref={triggerRef}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={toggleMenu}
+        className="grid h-8 w-8 cursor-pointer place-items-center rounded-lg border border-white/[.07] bg-white/[.025] text-[#717c90] transition hover:border-violet-300/20 hover:bg-white/[.06] hover:text-white disabled:opacity-40"
+        aria-label={`Actions for ${user.name}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        {busy ? (
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-violet-300" />
+        ) : (
+          <AdminIcon name="more" className="h-4 w-4" />
+        )}
+      </button>
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              role="menu"
+              style={{ top: menuPosition.top, right: menuPosition.right }}
+              className="admin-sidebar-scroll fixed z-[150] max-h-[calc(100vh-16px)] w-[175px] overflow-y-auto rounded-[18px] border border-white/[.09] bg-[rgba(8,11,23,.98)] p-2 text-left shadow-[0_24px_70px_rgba(0,0,0,.58)] backdrop-blur-2xl"
+            >
+              <div className="grid gap-1">
+                <button
+                  type="button"
+                  className={itemClass}
+                  onClick={() => {
+                    close();
+                    onViewDetails();
+                  }}
+                  role="menuitem"
+                >
+                  <AdminIcon name="eye" className="h-4 w-4 text-[#9e8bed]" />
+                  View Details
+                </button>
+                <button type="button" className={itemClass} onClick={close} role="menuitem">
+                  <AdminIcon name="users" className="h-4 w-4 text-[#82a9e9]" />
+                  View User Profile
+                </button>
+                {user.role === "Creator" ? (
+                  <button type="button" className={itemClass} onClick={close} role="menuitem">
+                    <AdminIcon name="creators" className="h-4 w-4 text-[#b096f7]" />
+                    View Creator Profile
+                  </button>
+                ) : null}
+                <button type="button" className={itemClass} onClick={close} role="menuitem">
+                  <AdminIcon name="wallet" className="h-4 w-4 text-cyan-300" />
+                  View Wallets
+                </button>
+                <button type="button" className={itemClass} onClick={close} role="menuitem">
+                  <AdminIcon name="nfts" className="h-4 w-4 text-[#a28df1]" />
+                  View NFTs
+                </button>
+                <button type="button" className={itemClass} onClick={close} role="menuitem">
+                  <AdminIcon name="transactions" className="h-4 w-4 text-emerald-300" />
+                  View Transactions
+                </button>
+              </div>
+              <div className="my-2 h-px bg-white/[.06]" />
+              <span className="mb-1 block px-3 text-[8px] font-bold uppercase tracking-[1px] text-[#505c70]">
+                Account control
+              </span>
+              <div className="grid gap-1">
+                {user.status !== "REVIEW" ? (
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => {
+                      close();
+                      onStatus("REVIEW");
+                    }}
+                    role="menuitem"
+                  >
+                    <AdminIcon name="moderation" className="h-4 w-4 text-amber-300" />
+                    Mark For Review
+                  </button>
+                ) : null}
+                {user.status !== "SUSPENDED" ? (
+                  <button
+                    type="button"
+                    className={`${itemClass} text-rose-300 hover:bg-rose-400/[.07] hover:text-rose-200`}
+                    onClick={() => {
+                      close();
+                      onStatus("SUSPENDED");
+                    }}
+                    role="menuitem"
+                  >
+                    <AdminIcon name="userX" className="h-4 w-4" />
+                    Suspend Account
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={`${itemClass} text-emerald-300 hover:bg-emerald-400/[.07] hover:text-emerald-200`}
+                    onClick={() => {
+                      close();
+                      onStatus("ACTIVE");
+                    }}
+                    role="menuitem"
+                  >
+                    <AdminIcon name="userCheck" className="h-4 w-4" />
+                    Reactivate account
+                  </button>
+                )}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+    </div>
+  );
+}
+
+function AdminUserDetailsModal({
+  open,
+  loading,
+  error,
+  user,
+  onClose,
+  onRetry,
+}: {
+  open: boolean;
+  loading: boolean;
+  error: string | null;
+  user: AdminUserDetails | null;
+  onClose: () => void;
+  onRetry: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [onClose, open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  const networkName = (chainId: number) =>
+    chainId === 84532
+      ? "Base Sepolia"
+      : chainId === 11155111
+        ? "Ethereum Sepolia"
+        : chainId === 80002
+          ? "Polygon Amoy"
+          : `Chain ${chainId}`;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] grid place-items-center bg-[rgba(2,4,11,.84)] p-3 backdrop-blur-md sm:p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label="User details"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="admin-sidebar-scroll flex max-h-[92vh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[.09] bg-[rgba(8,11,23,.99)] shadow-[0_34px_110px_rgba(0,0,0,.72)]">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[.06] p-3 sm:p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-300/[.14] bg-violet-400/[.08] text-[#b6a4fa]">
+              <AdminIcon name="users" className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="m-0 truncate text-[17px] font-semibold text-[#edf0f7] sm:text-[19px]">
+                {loading ? "Loading user…" : user?.name || "User details"}
+              </h2>
+              <p className="m-0 mt-1 truncate text-[9px] text-[#657087]">
+                Account identity, access and marketplace activity
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-white/[.08] text-[#8994a8] transition hover:bg-white/[.05] hover:text-white"
+            aria-label="Close user details"
+          >
+            <AdminIcon name="close" className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="admin-sidebar-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+          {loading ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-[112px] rounded-[18px] bg-white/[.035]" />
+              <div className="grid grid-cols-4 gap-2 max-[620px]:grid-cols-2">
+                {Array.from({ length: 4 }, (_, index) => (
+                  <div key={index} className="h-[74px] rounded-xl bg-white/[.035]" />
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3 max-[620px]:grid-cols-1">
+                <div className="h-[210px] rounded-[18px] bg-white/[.035]" />
+                <div className="h-[210px] rounded-[18px] bg-white/[.035]" />
+              </div>
+            </div>
+          ) : error ? (
+            <div className="grid min-h-[310px] place-items-center text-center">
+              <div className="max-w-[360px]">
+                <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl border border-rose-300/[.14] bg-rose-400/[.08] text-rose-300">
+                  <AdminIcon name="userX" className="h-5 w-5" />
+                </span>
+                <h3 className="mb-0 mt-4 text-[13px] text-[#e9edf5]">
+                  Could not load user details
+                </h3>
+                <p className="mb-4 mt-2 text-[10px] leading-5 text-[#778298]">{error}</p>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="h-9 cursor-pointer rounded-xl bg-violet-500 px-4 text-[10px] font-semibold text-white transition hover:bg-violet-400"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          ) : user ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3 rounded-[18px] border border-white/[.065] bg-[linear-gradient(115deg,rgba(125,91,241,.1),rgba(43,210,196,.025))] p-3 sm:p-4">
+                <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-violet-300/[.16] bg-[#12172a] text-[17px] font-semibold text-[#b8a7fa]">
+                  {user.name.slice(0, 2).toUpperCase()}
+                </span>
+                <div className="min-w-[180px] flex-1">
+                  <h3 className="m-0 text-[14px] font-semibold text-[#eef1f7]">{user.name}</h3>
+                  <p className="m-0 mt-1 text-[9px] text-[#778298]">
+                    {user.username} · {user.email}
+                  </p>
+                  <span className="mt-2 inline-flex rounded-full border border-violet-300/[.14] bg-violet-400/[.08] px-2.5 py-1 text-[8px] font-semibold text-[#b7a4ff]">
+                    {user.role}
+                  </span>
+                </div>
+                <span
+                  className={`rounded-full border px-3 py-1.5 text-[9px] ${user.status === "ACTIVE" ? "border-emerald-300/[.14] bg-emerald-400/[.08] text-emerald-300" : user.status === "REVIEW" ? "border-amber-300/[.14] bg-amber-400/[.08] text-amber-300" : "border-rose-300/[.14] bg-rose-400/[.08] text-rose-300"}`}
+                >
+                  {user.status === "REVIEW" ? "Under review" : user.status.toLowerCase()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 max-[620px]:grid-cols-2">
+                {[
+                  ["Total NFTs", user.nftStats.total],
+                  ["Minted", user.nftStats.minted],
+                  ["Awaiting mint", user.nftStats.awaitingMint],
+                  ["Failed", user.nftStats.failed],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-xl border border-white/[.055] bg-white/[.022] p-3"
+                  >
+                    <span className="block text-[8px] text-[#667187]">{label}</span>
+                    <strong className="mt-1.5 block text-[16px] font-semibold text-[#e2e7f0]">
+                      {value}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-[680px]:grid-cols-1">
+                <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
+                  <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">
+                    Account information
+                  </h3>
+                  <div className="mt-3 grid gap-2">
+                    {[
+                      ["User ID", user.id],
+                      ["Joined", formatDate(user.joinedAt)],
+                      ["Last active", formatDate(user.lastActiveAt)],
+                      ["Last updated", formatDate(user.updatedAt)],
+                      ["Creator status", user.creatorStatus.replaceAll("_", " ")],
+                      ["Website", user.website || "Not provided"],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="flex items-start justify-between gap-4 border-b border-white/[.045] py-2 last:border-0"
+                      >
+                        <span className="shrink-0 text-[8px] text-[#626e83]">{label}</span>
+                        <span className="break-all text-right text-[9px] capitalize text-[#aeb7c8]">
+                          {value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
+                  <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">
+                    Connected wallets
+                  </h3>
+                  <div className="mt-3 grid gap-2">
+                    {user.wallets.length ? (
+                      user.wallets.map((wallet) => (
+                        <div
+                          key={wallet.id}
+                          className="rounded-xl border border-white/[.05] bg-[#080b16] p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[9px] font-medium text-[#a996f1]">
+                              {networkName(wallet.chainId)}
+                            </span>
+                            {wallet.isPrimary ? (
+                              <span className="rounded-full bg-emerald-400/[.08] px-2 py-1 text-[7px] text-emerald-300">
+                                Primary
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mb-0 mt-2 break-all font-mono text-[8px] leading-4 text-[#7c879a]">
+                            {wallet.address}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="m-0 rounded-xl border border-dashed border-white/[.07] p-5 text-center text-[9px] text-[#657087]">
+                        No wallet connected.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {user.creator ? (
+                <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">
+                      Creator application
+                    </h3>
+                    <span className="rounded-full border border-violet-300/[.12] bg-violet-400/[.07] px-2.5 py-1 text-[8px] capitalize text-[#b5a3f5]">
+                      {user.creator.status}
+                    </span>
+                  </div>
+                  <p className="mb-0 mt-3 text-[9px] leading-5 text-[#8490a5]">
+                    {user.creator.bio}
+                  </p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 max-[560px]:grid-cols-1">
+                    {[
+                      ["Type", user.creator.creatorType],
+                      ["Category", user.creator.primaryCategory],
+                      ["Country", user.creator.country],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="rounded-xl border border-white/[.05] bg-[#080b16] p-3"
+                      >
+                        <span className="block text-[8px] text-[#606c81]">{label}</span>
+                        <strong className="mt-1 block text-[9px] capitalize text-[#b7c0cf]">
+                          {value}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
+                <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">Recent NFTs</h3>
+                <div className="mt-3 grid gap-1">
+                  {user.recentNfts.length ? (
+                    user.recentNfts.map((nft) => (
+                      <div
+                        key={nft.id}
+                        className="flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-white/[.025]"
+                      >
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-400/[.07] text-[#a895ef]">
+                          <AdminIcon name="nfts" className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <strong className="block truncate text-[9px] text-[#cfd5e0]">
+                            {nft.name}
+                          </strong>
+                          <span className="mt-1 block text-[8px] text-[#626e83]">
+                            {networkName(nft.chainId)} · {formatDate(nft.createdAt)}
+                          </span>
+                        </div>
+                        <span className="text-[8px] text-[#8c98aa]">
+                          {nft.tokenId ? `#${nft.tokenId}` : nft.status.replaceAll("_", " ")}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="m-0 rounded-xl border border-dashed border-white/[.07] p-5 text-center text-[9px] text-[#657087]">
+                      No NFTs created yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function AdminUsers() {
+  const config = configs.users;
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [status, setStatus] = useState<"" | "ACTIVE" | "REVIEW" | "SUSPENDED">("");
+  const [dateRange, setDateRange] = useState<"ALL" | "TODAY" | "7_DAYS" | "30_DAYS">("30_DAYS");
+  const [sort, setSort] = useState<"NEWEST" | "OLDEST" | "NAME_ASC">("NEWEST");
+  const [page, setPage] = useState(1);
+  const [payload, setPayload] = useState<AdminUsersPayload["data"]>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [detailUser, setDetailUser] = useState<AdminUserDetails | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const detailRequestRef = useRef(0);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    let active = true;
+    const input = adminUsersFilterSchema.parse({
+      page,
+      limit: 12,
+      search: debouncedSearch,
+      status: status || undefined,
+      dateRange,
+      sort,
+    });
+    // Each server-side filter change starts a fresh table request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    setError(null);
+    adminGraphql<AdminUsersPayload>(ADMIN_USERS_QUERY, { input })
+      .then((response) => {
+        if (!active) return;
+        if (!response.success || !response.data) throw new Error(response.message);
+        setPayload(response.data);
+      })
+      .catch((requestError) => {
+        if (active)
+          setError(requestError instanceof Error ? requestError.message : "Could not load users.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [dateRange, debouncedSearch, page, refreshKey, sort, status]);
+
+  const updateUserStatus = async (
+    user: AdminManagedUser,
+    nextStatus: "ACTIVE" | "REVIEW" | "SUSPENDED",
+  ) => {
+    setActionId(user.id);
+    setError(null);
+    try {
+      const response = await adminGraphql<AdminUserStatusPayload>(
+        UPDATE_ADMIN_USER_STATUS_MUTATION,
+        { userId: user.id, status: nextStatus },
+      );
+      if (!response.success) throw new Error(response.message);
+      setPayload((current) =>
+        current
+          ? {
+              ...current,
+              users: current.users.map((item) =>
+                item.id === user.id ? { ...item, status: nextStatus } : item,
+              ),
+            }
+          : current,
+      );
+      setRefreshKey((value) => value + 1);
+    } catch (actionError) {
+      setError(
+        actionError instanceof Error ? actionError.message : "Could not update user status.",
+      );
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const loadUserDetails = async (userId: string) => {
+    const requestId = ++detailRequestRef.current;
+    setDetailUserId(userId);
+    setDetailUser(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const response = await adminGraphql<AdminUserDetailsPayload>(ADMIN_USER_DETAILS_QUERY, {
+        userId,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      if (requestId !== detailRequestRef.current) return;
+      setDetailUser(response.data);
+    } catch (requestError) {
+      if (requestId !== detailRequestRef.current) return;
+      setDetailError(
+        requestError instanceof Error ? requestError.message : "Could not load user details.",
+      );
+    } finally {
+      if (requestId === detailRequestRef.current) setDetailLoading(false);
+    }
+  };
+
+  const metrics: Metric[] = payload
+    ? [
+        {
+          label: "Total users",
+          value: payload.metrics.totalUsers.toLocaleString(),
+          change: `${payload.metrics.totalChangePercent >= 0 ? "+" : ""}${payload.metrics.totalChangePercent}% this month`,
+          tone: "violet",
+        },
+        {
+          label: "Active today",
+          value: payload.metrics.activeToday.toLocaleString(),
+          change: `${payload.metrics.activeSharePercent}% of total`,
+          tone: "cyan",
+        },
+        {
+          label: "New this week",
+          value: payload.metrics.newThisWeek.toLocaleString(),
+          change: `${payload.metrics.newChangePercent >= 0 ? "+" : ""}${payload.metrics.newChangePercent}%`,
+          tone: "green",
+        },
+        {
+          label: "Restricted",
+          value: payload.metrics.restricted.toLocaleString(),
+          change: `${payload.metrics.reviewRequired} need review`,
+          tone: "rose",
+        },
+      ]
+    : [];
+
+  return (
+    <>
+      <Header config={config} />
+      {loading && !payload ? (
+        <div className="mb-4 grid grid-cols-4 gap-3 max-[1050px]:grid-cols-2 max-[540px]:grid-cols-1">
+          {Array.from({ length: 4 }, (_, index) => (
+            <Card className="h-[112px] animate-pulse bg-white/[.025]" key={index} />
+          ))}
+        </div>
+      ) : payload ? (
+        <Metrics metrics={metrics} />
+      ) : null}
+
+      <Card className="overflow-visible">
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/[.06] p-3">
+          <label className="relative min-w-[220px] flex-1">
+            <AdminIcon
+              name="search"
+              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5d687c]"
+            />
+            <input
+              className="h-10 w-full rounded-xl border border-white/[.07] bg-[#080b16] pl-9 pr-3 text-[10px] outline-none placeholder:text-[#515c70] focus:border-violet-400/30"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search user management…"
+            />
+          </label>
+          <AdminFilterDropdown
+            label="Filter users by status"
+            value={status}
+            options={[
+              { value: "", label: "All statuses" },
+              { value: "ACTIVE", label: "Active" },
+              { value: "REVIEW", label: "Review" },
+              { value: "SUSPENDED", label: "Suspended" },
+            ]}
+            onChange={(value) => {
+              setStatus(value as typeof status);
+              setPage(1);
+            }}
+          />
+          <AdminFilterDropdown
+            label="Filter users by date"
+            value={dateRange}
+            options={[
+              { value: "ALL", label: "All time" },
+              { value: "TODAY", label: "Today" },
+              { value: "7_DAYS", label: "Last 7 days" },
+              { value: "30_DAYS", label: "Last 30 days" },
+            ]}
+            onChange={(value) => {
+              setDateRange(value as typeof dateRange);
+              setPage(1);
+            }}
+          />
+          <AdminFilterDropdown
+            label="Sort users"
+            value={sort}
+            options={[
+              { value: "NEWEST", label: "Newest" },
+              { value: "OLDEST", label: "Oldest" },
+              { value: "NAME_ASC", label: "Name A–Z" },
+            ]}
+            onChange={(value) => {
+              setSort(value as typeof sort);
+              setPage(1);
+            }}
+          />
+        </div>
+
+        {error ? (
+          <div className="p-8 text-center text-[10px] text-rose-300">{error}</div>
+        ) : loading && !payload ? (
+          <div className="space-y-px p-3">
+            {Array.from({ length: 6 }, (_, index) => (
+              <div className="h-[58px] animate-pulse rounded-xl bg-white/[.025]" key={index} />
+            ))}
+          </div>
+        ) : payload?.users.length ? (
+          <div className="overflow-x-auto admin-sidebar-scroll">
+            <table className="w-full min-w-[820px] border-collapse text-left">
+              <thead>
+                <tr>
+                  {["Account", "Wallet", "Role", "Joined", "Status", "Actions"].map((column) => (
+                    <th
+                      key={column}
+                      className={`border-b border-white/[.055] bg-white/[.012] p-3 text-[8px] font-bold uppercase tracking-[1px] text-[#505c70] ${column === "Actions" ? "text-right" : ""}`}
+                    >
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {payload.users.map((user) => {
+                  const style =
+                    user.status === "ACTIVE"
+                      ? toneClasses.green
+                      : user.status === "REVIEW"
+                        ? toneClasses.amber
+                        : toneClasses.rose;
+                  return (
+                    <tr
+                      key={user.id}
+                      className="group border-b border-white/[.045] last:border-0 hover:bg-white/[.018]"
+                    >
+                      <td className="p-3">
+                        <strong className="block text-[10px] font-semibold text-[#dde2ec]">
+                          {user.name}
+                        </strong>
+                        <span className="mt-1 block text-[9px] text-[#606c81]">
+                          {user.username}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-[9px] text-[#8d98aa]">
+                        {user.wallet.length > 18
+                          ? `${user.wallet.slice(0, 8)}…${user.wallet.slice(-6)}`
+                          : user.wallet}
+                      </td>
+                      <td className="p-3 text-[10px] text-[#8d98aa]">{user.role}</td>
+                      <td className="p-3 text-[10px] text-[#8d98aa]">
+                        {new Intl.DateTimeFormat("en", {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                        }).format(new Date(user.joinedAt))}
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] ${style.bg} ${style.border} ${style.text}`}
+                        >
+                          {user.status === "REVIEW"
+                            ? "Review"
+                            : user.status === "SUSPENDED"
+                              ? "Suspended"
+                              : "Active"}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <AdminUserActionMenu
+                          user={user}
+                          busy={actionId === user.id}
+                          onViewDetails={() => void loadUserDetails(user.id)}
+                          onStatus={(nextStatus) => void updateUserStatus(user, nextStatus)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-10 text-center">
+            <strong className="text-[11px]">No users found</strong>
+            <p className="m-0 mt-2 text-[9px] text-[#637086]">
+              Change your filters or search query and try again.
+            </p>
+          </div>
+        )}
+
+        {payload ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[.055] p-3">
+            <span className="text-[9px] text-[#5d687c]">
+              Showing {payload.users.length} of {payload.pagination.total.toLocaleString()} records
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
+              >
+                <AdminIcon name="chevronLeft" className="h-3 w-3" />
+                Previous
+              </button>
+              <span className="grid h-8 min-w-8 place-items-center rounded-lg bg-violet-500 px-2 text-[9px] text-white">
+                {page}
+              </span>
+              <span className="px-1 text-[9px] text-[#5d687c]">
+                of {Math.max(1, payload.pagination.pages)}
+              </span>
+              <button
+                disabled={page >= payload.pagination.pages || loading}
+                onClick={() => setPage((value) => value + 1)}
+                className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
+              >
+                Next
+                <AdminIcon name="chevronRight" className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+      <AdminUserDetailsModal
+        open={detailUserId !== null}
+        loading={detailLoading}
+        error={detailError}
+        user={detailUser}
+        onClose={() => {
+          detailRequestRef.current += 1;
+          setDetailUserId(null);
+          setDetailUser(null);
+          setDetailError(null);
+        }}
+        onRetry={() => {
+          if (detailUserId) void loadUserDetails(detailUserId);
+        }}
+      />
+    </>
+  );
+}
+
+function Overview() {
+  const { admin } = useAdminSession();
+  const metrics: Metric[] = [
+    {
+      label: "Marketplace Volume",
+      value: "$4.82M",
+      change: "+12.4% vs last month",
+      tone: "violet",
+    },
+    { label: "Active Users", value: "24,892", change: "+8.4% vs last month", tone: "cyan" },
+    { label: "NFTs Minted", value: "84,210", change: "99.72% confirmation rate", tone: "green" },
+    { label: "Open Cases", value: "124", change: "12 require attention", tone: "rose" },
+  ];
+  const activity = [
+    {
+      icon: "creators",
+      title: "Creator verification approved",
+      text: "Aqib Ali · by Sarah Ahmed",
+      time: "2m",
+      tone: "green",
+    },
+    {
+      icon: "transactions",
+      title: "Settlement batch completed",
+      text: "Batch #842 · $284,920",
+      time: "8m",
+      tone: "cyan",
+    },
+    {
+      icon: "moderation",
+      title: "Critical case escalated",
+      text: "#MOD-2841 · Copyright",
+      time: "18m",
+      tone: "rose",
+    },
+    {
+      icon: "ipfs",
+      title: "IPFS recovery successful",
+      text: "14 assets re-pinned",
+      time: "32m",
+      tone: "violet",
+    },
+  ] as const;
+  return (
+    <>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="m-0 text-[24px] font-semibold tracking-[-.7px] sm:text-[28px]">
+            Good Morning, {admin?.name ?? "Administrator"}
+          </h1>
+          <p className="m-0 mt-2 text-[11px] text-[#748096]">
+            Here is what is happening across Cryptonix today.
+          </p>
+        </div>
+      </div>
+      <Metrics metrics={metrics} />
+      <div className="grid grid-cols-[minmax(0,1.65fr)_minmax(290px,.75fr)] gap-4 max-[1000px]:grid-cols-1">
+        <Card className="p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <strong className="text-[12px]">Marketplace Performance</strong>
+              <span className="mt-1 block text-[9px] text-[#647086]">
+                Sales volume across all supported networks
+              </span>
+            </div>
+            <button className="flex items-center gap-1.5 rounded-lg border border-white/[.07] px-2.5 py-2 text-[9px] text-[#8b96aa]">
+              Last 30 days
+              <AdminIcon name="chevronDown" className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="mt-7 flex h-[220px] items-end gap-2 border-b border-white/[.06] px-1 sm:gap-3">
+            {[
+              36, 48, 41, 62, 55, 72, 66, 82, 70, 88, 79, 96, 84, 92, 74, 89, 98, 86, 100, 94, 106,
+              98, 116, 110,
+            ].map((height, index) => (
+              <div
+                key={index}
+                className="group relative flex-1 rounded-t-[4px] bg-[linear-gradient(180deg,rgba(155,123,255,.8),rgba(83,232,220,.12))] transition hover:brightness-125"
+                style={{ height: `${height * 1.65}px` }}
+              >
+                <span className="absolute -top-7 left-1/2 hidden -translate-x-1/2 rounded-md bg-[#1a2034] px-1.5 py-1 text-[8px] group-hover:block">
+                  ${height}K
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex justify-between text-[8px] text-[#505b6f]">
+            <span>Jul 12</span>
+            <span>Jul 19</span>
+            <span>Jul 26</span>
+            <span>Aug 02</span>
+            <span>Aug 10</span>
+          </div>
+        </Card>
+        <Card className="p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <strong className="text-[12px]">Recent Activity</strong>
+              <span className="mt-1 block text-[9px] text-[#647086]">
+                Live administrative events
+              </span>
+            </div>
+            <button className="flex items-center gap-1 text-[9px] text-[#9a84ef]">
+              View all
+              <AdminIcon name="chevronRight" className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="mt-4 space-y-1">
+            {activity.map((item) => (
+              <div
+                className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-white/[.025]"
+                key={item.title}
+              >
+                <span
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${toneClasses[item.tone].bg} ${toneClasses[item.tone].text}`}
+                >
+                  <AdminIcon name={item.icon as AdminIconName} className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <strong className="block truncate text-[10px] text-[#d4dae5]">
+                    {item.title}
+                  </strong>
+                  <span className="mt-1 block truncate text-[8px] text-[#5d687c]">{item.text}</span>
+                </div>
+                <span className="ml-auto text-[8px] text-[#515d71]">{item.time}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-4 max-[900px]:grid-cols-1">
+        <HealthCard
+          title="Network Health"
+          icon="networks"
+          items={[
+            ["Base Sepolia", "99.99%"],
+            ["Ethereum Sepolia", "99.97%"],
+            ["Polygon Amoy", "99.98%"],
+          ]}
+        />
+        <HealthCard
+          title="Operational Queue"
+          icon="transactions"
+          items={[
+            ["Pending transactions", "284"],
+            ["Mint retries", "64"],
+            ["Settlement exceptions", "12"],
+          ]}
+        />
+        <HealthCard
+          title="Attention Required"
+          icon="moderation"
+          items={[
+            ["Critical reports", "12"],
+            ["Creator applications", "86"],
+            ["Broken IPFS assets", "38"],
+          ]}
+        />
+      </div>
+    </>
+  );
+}
+
+function HealthCard({
+  title,
+  icon,
+  items,
+}: {
+  title: string;
+  icon: AdminIconName;
+  items: string[][];
+}) {
+  return (
+    <Card className="p-3">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-400/[.08] text-[#aa96fb]">
+          <AdminIcon name={icon} className="h-4 w-4" />
+        </span>
+        <strong className="text-[11px]">{title}</strong>
+      </div>
+      <div className="space-y-3">
+        {items.map(([label, value], index) => (
+          <div className="flex items-center justify-between" key={label}>
+            <span className="flex items-center gap-2 text-[9px] text-[#748095]">
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${index === 2 && title === "Attention required" ? "bg-rose-400" : "bg-emerald-400"}`}
+              />
+              {label}
+            </span>
+            <strong className="text-[9px] text-[#bbc3d0]">{value}</strong>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+export default function AdminSection({ section }: { section: AdminSectionName }) {
+  if (section === "overview") return <Overview />;
+  if (section === "users") return <AdminUsers />;
+  const config = configs[section];
+  return (
+    <>
+      <Header config={config} />
+      <Metrics metrics={config.metrics} />
+      <DataTable config={config} />
+    </>
+  );
+}
