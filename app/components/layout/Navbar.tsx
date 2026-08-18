@@ -96,6 +96,7 @@ function SignOutIcon() {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [activeHash, setActiveHash] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -125,10 +126,22 @@ export default function Navbar() {
   const visibleNavigation = navigation;
   const isActiveLink = (href: string) => {
     if (href === "/") return pathname === "/";
-    if (href === "/#collections") return false;
+    if (href === "/#collections") return pathname === "/" && activeHash === "#collections";
     if (href === "/tokens") return pathname === "/tokens" || pathname.startsWith("/token/");
     return pathname === href || pathname.startsWith(`${href}/`);
   };
+
+  useEffect(() => {
+    const syncHash = () => setActiveHash(window.location.hash);
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    if (pathname === "/" && window.location.hash === "#collections") {
+      window.requestAnimationFrame(() =>
+        document.getElementById("collections")?.scrollIntoView({ behavior: "smooth" }),
+      );
+    }
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, [pathname]);
 
   useEffect(() => {
     if (!profileOpen) return;
@@ -207,6 +220,13 @@ export default function Navbar() {
                 className={`nav-reflection-link rounded-[10px] border px-4 py-2 transition ${active ? "border-[rgba(155,123,255,.22)] bg-[linear-gradient(110deg,rgba(141,107,255,.2),rgba(74,221,209,.07))] text-white shadow-[inset_0_1px_rgba(255,255,255,.06)]" : "border-transparent text-[#aeb7c9] hover:border-white/[.06] hover:bg-white/[.065] hover:text-white"}`}
                 key={item.label}
                 href={item.href}
+                onClick={(event) => {
+                  if (item.href !== "/#collections" || pathname !== "/") return;
+                  event.preventDefault();
+                  window.history.pushState(null, "", "#collections");
+                  setActiveHash("#collections");
+                  document.getElementById("collections")?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 {item.label}
               </Link>

@@ -20,3 +20,23 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
+
+type GraphQLResponse<T> = {
+  data?: T;
+  errors?: Array<{ message: string }>;
+};
+
+export async function graphQLRequest<T>(
+  query: string,
+  variables?: Record<string, unknown>,
+): Promise<T> {
+  const response = await apiRequest<GraphQLResponse<T>>("/graphql", {
+    method: "POST",
+    body: JSON.stringify({ query, variables }),
+  });
+  if (response.errors?.length) {
+    throw new Error(response.errors.map((error) => error.message).join(" "));
+  }
+  if (!response.data) throw new Error("The GraphQL response did not include data.");
+  return response.data;
+}

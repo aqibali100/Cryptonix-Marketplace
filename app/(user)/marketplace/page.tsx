@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import PageBreadcrumb from "../../components/layout/PageBreadcrumb";
 
 const categories = ["All assets", "Art", "Collectibles", "Gaming", "Photography", "Music"];
 
@@ -111,16 +112,12 @@ export default function MarketplacePage() {
   );
 
   return (
-    <main className="marketplace-page relative min-h-screen overflow-hidden [padding:145px_0_100px] max-[600px]:pt-[115px]">
+    <main className="marketplace-page relative min-h-screen overflow-hidden pb-[100px] pt-[118px] max-[600px]:pt-[100px]">
       <div className="market-glow market-glow-one absolute z-[-1] rounded-full [filter:blur(100px)] pointer-events-none top-20 left-[60%] w-[420px] h-[280px] bg-[rgba(108,_74,_224,_.13)]" />
       <div className="market-glow market-glow-two absolute z-[-1] rounded-full [filter:blur(100px)] pointer-events-none top-[600px] left-[-180px] w-[390px] h-[390px] bg-[rgba(47,_216,_205,_.06)]" />
 
       <section className="market-hero page-shell w-[min(1180px,_calc(100%_-_40px))] [margin-inline:auto] max-[600px]:w-[min(100%_-_28px,_1180px)]">
-        <div className="market-breadcrumb flex gap-[9px] mb-[30px] text-[#667188] text-[12px] [&_a:hover]:text-white [&_strong]:text-[#a6afc2] [&_strong]:font-medium max-[600px]:mb-5">
-          <Link href="/">Home</Link>
-          <span>/</span>
-          <strong>Marketplace</strong>
-        </div>
+        <PageBreadcrumb items={[{ label: "Home", href: "/" }, { label: "Marketplace" }]} />
         <div className="market-title-row flex items-end justify-between gap-[50px] pb-12 [&_h1]:max-w-[760px] [&_h1]:mt-3 [&_h1]:text-[clamp(46px,_6.1vw,_74px)] [&_>_div:first-child_>_p]:max-w-[660px] [&_>_div:first-child_>_p]:[margin:22px_0_0] [&_>_div:first-child_>_p]:text-[var(--muted)] [&_>_div:first-child_>_p]:text-[15px] [&_>_div:first-child_>_p]:leading-[1.7] max-[900px]:items-start max-[900px]:flex-col max-[600px]:gap-7 max-[600px]:pb-[34px] max-[600px]:[&_h1]:text-[42px] max-[600px]:[&_h1]:tracking-[-2.7px] max-[600px]:[&_>_div:first-child_>_p]:text-sm">
           <div>
             <span className="section-kicker text-[var(--cyan)] text-[12px] font-bold tracking-[2px]">

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL, apiRequest } from "../../lib/api";
+import { API_URL, apiRequest, graphQLRequest } from "../../lib/api";
 import { formatEther, parseEther } from "viem";
 import { useConnection, useSendTransaction, useSwitchChain } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
@@ -10,6 +11,7 @@ import { wagmiConfig } from "../../lib/wagmi";
 import CreatorOverview from "./CreatorOverview";
 import CreateNftForm from "./CreateNftForm";
 import type { CreatorSectionName } from "./creator-navigation";
+import CreateCollectionModal from "./CreateCollectionModal";
 
 const tableRows = {
   listings: [
@@ -1149,7 +1151,7 @@ function NftGrid() {
             if (event.target === event.currentTarget) setDetailOpen(false);
           }}
         >
-          <section className="max-h-[90vh] w-full max-w-[760px] overflow-y-auto rounded-[24px] border border-[var(--line)] bg-[rgba(9,12,25,.98)] p-2 shadow-[0_32px_100px_rgba(0,0,0,.65)] [scrollbar-width:thin]">
+          <section className="max-h-[90vh] w-full max-w-[760px] overflow-y-auto rounded-[24px] border border-[var(--line)] bg-[rgba(9,12,25,.98)] p-3 shadow-[0_32px_100px_rgba(0,0,0,.65)] [scrollbar-width:thin]">
             <header className="flex items-center justify-between">
               <div>
                 <span className="text-[9px] font-bold tracking-[1.5px] text-[#8870e4]">
@@ -1454,39 +1456,235 @@ function NftGrid() {
 }
 
 function Collections() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  type CollectionCard = {
+    id: string;
+    name: string;
+    slug: string;
+    bannerUrl: string;
+    chainId: number;
+    royaltyBps: number;
+    isVerified: boolean;
+    itemCount: number;
+    floorPriceWei: string;
+  };
+  type CollectionsResult = {
+    myCollections: {
+      success: boolean;
+      message: string;
+      items: CollectionCard[];
+      pagination: {
+        page: number;
+        limit: number;
+        total: number;
+        pages: number;
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+      };
+    };
+  };
+  const collectionsQuery = useQuery({
+    queryKey: ["creator", "collections", page],
+    queryFn: () =>
+      graphQLRequest<CollectionsResult>(
+        `query MyCollections($page: Int!) { myCollections(page: $page) { success message items { id name slug bannerUrl chainId royaltyBps isVerified itemCount floorPriceWei } pagination { page limit total pages hasNextPage hasPreviousPage } } }`,
+        { page },
+      ),
+    staleTime: 30_000,
+  });
+  const result = collectionsQuery.data?.myCollections;
+  const chainNames: Record<number, string> = {
+    84532: "Base Sepolia",
+    11155111: "Ethereum Sepolia",
+    80002: "Polygon Amoy",
+  };
+  const floor = (value: string) =>
+    value
+      ? `${Number(formatEther(BigInt(value))).toLocaleString(undefined, { maximumFractionDigits: 4 })} ETH`
+      : "—";
   return (
     <>
       <Header
         title="Collections"
         text="Organize your work into recognizable worlds for collectors."
-        action={<Button>New collection +</Button>}
+        action={
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-4 text-[11px] font-semibold shadow-[0_10px_28px_rgba(105,72,235,.25)] transition hover:-translate-y-0.5"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+            New collection
+          </button>
+        }
       />
-      <div className="grid grid-cols-3 gap-4 max-[950px]:grid-cols-2 max-[600px]:grid-cols-1">
-        {[
-          ["Aether Dimensions", "42 items", "1.72 ETH"],
-          ["Synthetic Nature", "31 items", "0.94 ETH"],
-          ["Prismatic Forms", "18 items", "2.10 ETH"],
-        ].map(([name, count, floor], i) => (
-          <Card className="overflow-hidden p-2" key={name}>
+      {collectionsQuery.isPending ? (
+        <div className="grid grid-cols-3 gap-4 max-[950px]:grid-cols-2 max-[600px]:grid-cols-1">
+          {Array.from({ length: 9 }, (_, index) => (
             <div
-              className={`h-36 rounded-[14px] ${i === 0 ? "bg-[radial-gradient(circle_at_30%_30%,#8965e9,transparent_25%),linear-gradient(135deg,#12283d,#291747)]" : i === 1 ? "bg-[radial-gradient(circle_at_65%_40%,#51d8c9,transparent_22%),linear-gradient(135deg,#14383a,#1b1b42)]" : "bg-[conic-gradient(from_180deg,#151d3b,#8a55d5,#d363a9,#4dd9cb,#151d3b)]"}`}
-            />
-            <div className="p-3">
-              <strong className="text-[13px]">{name}</strong>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <span>
-                  <small className="block text-[9px] text-[#657087]">Items</small>
-                  <b className="text-[11px]">{count}</b>
-                </span>
-                <span>
-                  <small className="block text-[9px] text-[#657087]">Floor</small>
-                  <b className="text-[11px]">{floor}</b>
-                </span>
+              key={index}
+              aria-hidden="true"
+              className="animate-pulse overflow-hidden rounded-[20px] border border-[var(--line)] bg-white/[.022] p-2"
+            >
+              <div className="h-36 rounded-[14px] bg-white/[.055]" />
+              <div className="p-3">
+                <span className="block h-3 w-2/3 rounded bg-white/[.08]" />
+                <span className="mt-3 block h-2 w-1/3 rounded bg-white/[.045]" />
+                <div className="mt-5 flex justify-between">
+                  <span className="h-7 w-14 rounded bg-white/[.05]" />
+                  <span className="h-7 w-16 rounded bg-white/[.05]" />
+                </div>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : collectionsQuery.isError ? (
+        <div className="grid min-h-64 place-items-center rounded-[20px] border border-rose-400/10 bg-rose-400/[.025] text-center">
+          <div>
+            <p className="text-[12px] text-rose-300">
+              {collectionsQuery.error instanceof Error
+                ? collectionsQuery.error.message
+                : "Collections could not be loaded."}
+            </p>
+            <button
+              type="button"
+              onClick={() => collectionsQuery.refetch()}
+              className="mt-3 rounded-xl border border-white/[.09] px-4 py-2 text-[11px] hover:bg-white/[.05]"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      ) : result?.items.length ? (
+        <>
+          <div className="grid grid-cols-3 gap-4 max-[950px]:grid-cols-2 max-[600px]:grid-cols-1">
+            {result.items.map((collection) => (
+              <Card className="group overflow-hidden p-2" key={collection.id}>
+                <div className="relative h-36 overflow-hidden rounded-[14px] bg-[#151a31]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${API_URL}${collection.bannerUrl}`}
+                    alt={`${collection.name} banner`}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+                  />
+                  <span className="absolute bottom-2 left-2 rounded-full border border-white/10 bg-[#050711bf] px-2 py-1 text-[9px] backdrop-blur-xl">
+                    {chainNames[collection.chainId] ?? `Chain ${collection.chainId}`}
+                  </span>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <strong className="truncate text-[13px]">{collection.name}</strong>
+                    <span className="text-[9px] text-[#75678f]">
+                      {collection.royaltyBps / 100}% royalty
+                    </span>
+                  </div>
+                  <small className="mt-1 block truncate text-[9px] text-[#59657a]">
+                    /{collection.slug}
+                  </small>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <span>
+                      <small className="block text-[9px] text-[#657087]">Items</small>
+                      <b className="text-[11px]">{collection.itemCount}</b>
+                    </span>
+                    <span className="text-right">
+                      <small className="block text-[9px] text-[#657087]">Floor</small>
+                      <b className="text-[11px] text-[var(--cyan)]">
+                        {floor(collection.floorPriceWei)}
+                      </b>
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+          {result.pagination.pages > 1 && (
+            <nav
+              aria-label="Collection pages"
+              className="mt-5 flex items-center justify-between rounded-[16px] border border-white/[.06] bg-white/[.018] p-2"
+            >
+              <span className="px-2 text-[10px] text-[#687389]">
+                Page {result.pagination.page} of {result.pagination.pages} ·{" "}
+                {result.pagination.total} collections
+              </span>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  disabled={!result.pagination.hasPreviousPage}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  aria-label="Previous collections page"
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/[.08] text-[#9ba5b7] transition hover:bg-white/[.05] disabled:opacity-30"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-4 w-4"
+                  >
+                    <path d="m15 18-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  disabled={!result.pagination.hasNextPage}
+                  onClick={() => setPage((value) => value + 1)}
+                  aria-label="Next collections page"
+                  className="grid h-9 w-9 place-items-center rounded-xl border border-white/[.08] text-[#9ba5b7] transition hover:bg-white/[.05] disabled:opacity-30"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    className="h-4 w-4"
+                  >
+                    <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </nav>
+          )}
+        </>
+      ) : (
+        <div className="grid min-h-64 place-items-center rounded-[20px] border border-dashed border-white/[.09] bg-white/[.015] text-center">
+          <div>
+            <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#8d72ee]/10 text-[#a996ef]">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                className="h-5 w-5"
+              >
+                <rect x="4" y="4" width="16" height="16" rx="3" />
+                <path d="m8 15 3-3 2 2 3-4 2 3" />
+              </svg>
+            </span>
+            <h2 className="mb-1 mt-3 text-sm">Create your first collection</h2>
+            <p className="text-[10px] text-[#657087]">
+              Your published collection worlds will appear here.
+            </p>
+          </div>
+        </div>
+      )}
+      <CreateCollectionModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={() => {
+          setPage(1);
+          void collectionsQuery.refetch();
+        }}
+      />
     </>
   );
 }

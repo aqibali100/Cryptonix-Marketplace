@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 export default function CreatorLayout({ children }: { children: React.ReactNode }) {
   return (
-    <CreatorGuard>
-      <CreatorShell>{children}</CreatorShell>
-    </CreatorGuard>
+    <CreatorShell>
+      <CreatorGuard>{children}</CreatorGuard>
+    </CreatorShell>
   );
 }

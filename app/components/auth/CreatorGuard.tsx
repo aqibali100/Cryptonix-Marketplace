@@ -4,17 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import cryptonixLogo from "../../../public/assets/logo.png";
+import CreatorContentSkeleton from "../creator/CreatorContentSkeleton";
 import { useAuth } from "./AuthProvider";
 
 export default function CreatorGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
   if (auth.isLoading) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[#050711] text-[12px] text-[#7f8ba0]">
-        Checking creator access…
-      </main>
-    );
+    return <CreatorContentSkeleton />;
   }
 
   if (!auth.user) notFound();
@@ -23,7 +20,7 @@ export default function CreatorGuard({ children }: { children: React.ReactNode }
 
   const pending = auth.user?.creatorStatus === "pending";
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(circle_at_50%_20%,rgba(126,95,255,.15),transparent_30rem),#050711] px-5">
+    <main className="grid min-h-[calc(100vh-232px)] place-items-center rounded-[22px] bg-[radial-gradient(circle_at_50%_20%,rgba(126,95,255,.15),transparent_30rem),#050711] px-5">
       <section className="w-full max-w-md rounded-[24px] border border-[var(--line)] bg-[rgba(14,18,35,.82)] p-7 text-center shadow-[0_30px_90px_rgba(0,0,0,.4)] backdrop-blur-xl">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[rgba(155,123,255,.11)] p-1">
           <Image

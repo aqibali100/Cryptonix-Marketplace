@@ -90,6 +90,69 @@ export const ADMIN_USERS_QUERY = /* GraphQL */ `
   }
 `;
 
+export type AdminUserExportRecord = {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  role: string;
+  creatorStatus: string;
+  accountStatus: string;
+  primaryWallet: string;
+  walletChainId: number | null;
+  joinedAt: string;
+  lastActiveAt: string;
+  totalNfts: number;
+};
+
+export type AdminUsersExportPayload = {
+  success: boolean;
+  code: string;
+  message: string;
+  data: null | {
+    generatedAt: string;
+    total: number;
+    exported: number;
+    truncated: boolean;
+    users: AdminUserExportRecord[];
+  };
+  errors?: Array<{ field: string; message: string }> | null;
+};
+
+export const ADMIN_USERS_EXPORT_QUERY = /* GraphQL */ `
+  query AdminUsersExport($input: AdminUsersQueryInput) {
+    adminUsersExport(input: $input) {
+      success
+      code
+      message
+      errors {
+        field
+        message
+      }
+      data {
+        generatedAt
+        total
+        exported
+        truncated
+        users {
+          id
+          name
+          username
+          email
+          role
+          creatorStatus
+          accountStatus
+          primaryWallet
+          walletChainId
+          joinedAt
+          lastActiveAt
+          totalNfts
+        }
+      }
+    }
+  }
+`;
+
 export type AdminUserStatusPayload = {
   success: boolean;
   code: string;
@@ -148,14 +211,6 @@ export type AdminUserDetails = {
     reviewedAt: string | null;
   };
   nftStats: { total: number; minted: number; awaitingMint: number; failed: number };
-  recentNfts: Array<{
-    id: string;
-    name: string;
-    status: string;
-    tokenId: string | null;
-    chainId: number;
-    createdAt: string;
-  }>;
 };
 
 export type AdminUserDetailsPayload = {
@@ -165,6 +220,51 @@ export type AdminUserDetailsPayload = {
   data: AdminUserDetails | null;
   errors?: Array<{ field: string; message: string }> | null;
 };
+
+export type AdminUserWallets = {
+  id: string;
+  name: string;
+  wallets: Array<{
+    id: string;
+    address: string;
+    chainId: number;
+    isPrimary: boolean;
+    connectedAt: string;
+  }>;
+};
+
+export type AdminUserWalletsPayload = {
+  success: boolean;
+  code: string;
+  message: string;
+  data: AdminUserWallets | null;
+  errors?: Array<{ field: string; message: string }> | null;
+};
+
+export const ADMIN_USER_WALLETS_QUERY = /* GraphQL */ `
+  query AdminUserWallets($userId: ID!) {
+    adminUserWallets(userId: $userId) {
+      success
+      code
+      message
+      errors {
+        field
+        message
+      }
+      data {
+        id
+        name
+        wallets {
+          id
+          address
+          chainId
+          isPrimary
+          connectedAt
+        }
+      }
+    }
+  }
+`;
 
 export const ADMIN_USER_DETAILS_QUERY = /* GraphQL */ `
   query AdminUserDetails($userId: ID!) {
@@ -214,13 +314,103 @@ export const ADMIN_USER_DETAILS_QUERY = /* GraphQL */ `
           awaitingMint
           failed
         }
-        recentNfts {
+      }
+    }
+  }
+`;
+
+export type AdminUserNft = {
+  id: string;
+  name: string;
+  description: string;
+  collectionSlug: string;
+  category: string;
+  standard: "ERC721" | "ERC1155";
+  supply: number;
+  chainId: number;
+  creatorWallet: string;
+  royaltyBps: number;
+  saleType: "MINT_ONLY" | "FIXED" | "AUCTION";
+  priceWei: string;
+  auctionEndsAt: string | null;
+  mediaCid: string;
+  mediaUri: string;
+  mediaMimeType: string;
+  status: string;
+  contractAddress: string | null;
+  tokenId: string | null;
+  mintTransactionHash: string | null;
+  failureReason: string;
+  mintedAt: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  traits: Array<{ traitType: string; value: string }>;
+};
+
+export type AdminUserNftsPayload = {
+  success: boolean;
+  code: string;
+  message: string;
+  data: null | {
+    creator: { id: string; name: string };
+    nfts: AdminUserNft[];
+    pagination: { page: number; limit: number; total: number; pages: number };
+  };
+  errors?: Array<{ field: string; message: string }> | null;
+};
+
+export const ADMIN_USER_NFTS_QUERY = /* GraphQL */ `
+  query AdminUserNfts($userId: ID!, $page: Int, $limit: Int) {
+    adminUserNfts(userId: $userId, page: $page, limit: $limit) {
+      success
+      code
+      message
+      errors {
+        field
+        message
+      }
+      data {
+        creator {
           id
           name
-          status
-          tokenId
+        }
+        nfts {
+          id
+          name
+          description
+          collectionSlug
+          category
+          standard
+          supply
           chainId
+          creatorWallet
+          royaltyBps
+          saleType
+          priceWei
+          auctionEndsAt
+          mediaCid
+          mediaUri
+          mediaMimeType
+          status
+          contractAddress
+          tokenId
+          mintTransactionHash
+          failureReason
+          mintedAt
+          archivedAt
           createdAt
+          updatedAt
+          traits {
+            traitType
+            value
+          }
+        }
+        pagination {
+          page
+          limit
+          total
+          pages
         }
       }
     }

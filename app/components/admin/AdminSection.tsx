@@ -1,18 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { adminGraphql } from "../../lib/admin-auth";
+import { API_URL } from "../../lib/api";
+import { ADMIN_CREATORS_QUERY, type AdminCreatorsPayload } from "../../lib/admin-creators";
 import {
   ADMIN_USER_DETAILS_QUERY,
+  ADMIN_USER_NFTS_QUERY,
+  ADMIN_USER_WALLETS_QUERY,
   ADMIN_USERS_QUERY,
+  ADMIN_USERS_EXPORT_QUERY,
   UPDATE_ADMIN_USER_STATUS_MUTATION,
   adminUsersFilterSchema,
   type AdminManagedUser,
   type AdminUserDetails,
   type AdminUserDetailsPayload,
+  type AdminUserNftsPayload,
+  type AdminUserWallets,
+  type AdminUserWalletsPayload,
   type AdminUserStatusPayload,
   type AdminUsersPayload,
+  type AdminUsersExportPayload,
 } from "../../lib/admin-users";
 import { useAdminSession } from "./AdminGuard";
 import AdminIcon from "./AdminIcon";
@@ -58,7 +67,7 @@ const configs: Record<Exclude<AdminSectionName, "overview">, ModuleConfig> = {
       {
         primary: "Maya Chen",
         secondary: "@maya.collects",
-        values: ["0x71F2…8A40", "Collector", "Aug 10, 2026"],
+        values: ["0x71F2…8A40", "User", "Aug 10, 2026"],
         status: "Active",
         tone: "green",
       },
@@ -72,14 +81,14 @@ const configs: Record<Exclude<AdminSectionName, "overview">, ModuleConfig> = {
       {
         primary: "Noah Williams",
         secondary: "@noahw",
-        values: ["0x32A0…91BC", "Collector", "Aug 08, 2026"],
+        values: ["0x32A0…91BC", "User", "Aug 08, 2026"],
         status: "Review",
         tone: "amber",
       },
       {
         primary: "Lina Park",
         secondary: "@linap",
-        values: ["0xD190…55A1", "Collector", "Aug 07, 2026"],
+        values: ["0xD190…55A1", "User", "Aug 07, 2026"],
         status: "Suspended",
         tone: "rose",
       },
@@ -759,7 +768,7 @@ function AdminFilterDropdown({
   }, [open]);
 
   return (
-    <div className="relative min-w-[150px] max-[560px]:flex-1" ref={ref}>
+    <div className="relative w-[150px] min-w-[150px] max-[700px]:w-full" ref={ref}>
       <button
         type="button"
         aria-label={label}
@@ -828,7 +837,102 @@ function AdminFilterDropdown({
   );
 }
 
-function Header({ config }: { config: ModuleConfig }) {
+function AdminUsersExportMenu({
+  exporting,
+  onExport,
+}: {
+  exporting: "csv" | "json" | null;
+  onExport: (format: "csv" | "json") => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        disabled={exporting !== null}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849e8)] px-3 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(104,73,232,.22)] transition hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-70"
+      >
+        {exporting ? (
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+        ) : (
+          <AdminIcon name="external" className="h-3.5 w-3.5" />
+        )}
+        {exporting ? `Exporting ${exporting.toUpperCase()}…` : "Export users"}
+        {!exporting ? (
+          <AdminIcon
+            name="chevronDown"
+            className={`h-3.5 w-3.5 transition ${open ? "rotate-180" : ""}`}
+          />
+        ) : null}
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 top-[calc(100%+8px)] z-[80] w-[240px] overflow-hidden rounded-[18px] border border-[rgba(155,123,255,.22)] bg-[rgba(8,11,23,.99)] p-2 shadow-[0_24px_70px_rgba(0,0,0,.58)] backdrop-blur-2xl"
+        >
+          <div className="px-2.5 pb-2 pt-1">
+            <span className="text-[8px] font-bold uppercase tracking-[1px] text-[#59657a]">
+              Download format
+            </span>
+          </div>
+          {(
+            [
+              ["csv", "Export CSV", "Excel and Google Sheets", "CSV"],
+              ["json", "Export JSON", "Developers and integrations", "{ }"],
+            ] as const
+          ).map(([format, title, description, badge]) => (
+            <button
+              key={format}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onExport(format);
+              }}
+              className="group flex w-full cursor-pointer items-center gap-3 rounded-xl border border-transparent p-2.5 text-left transition hover:border-white/[.06] hover:bg-white/[.045]"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-violet-300/[.12] bg-violet-400/[.08] font-mono text-[9px] font-bold text-[#b6a4fa]">
+                {badge}
+              </span>
+              <span className="min-w-0">
+                <strong className="block text-[10px] font-semibold text-[#cdd3de] group-hover:text-white">
+                  {title}
+                </strong>
+                <small className="mt-1 block text-[8px] text-[#69758a]">{description}</small>
+              </span>
+            </button>
+          ))}
+          <p className="mb-1 mt-2 border-t border-white/[.055] px-2.5 pt-2.5 text-[8px] leading-4 text-[#59657a]">
+            Current filters apply to the complete export.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Header({ config, action }: { config: ModuleConfig; action?: React.ReactNode }) {
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -839,10 +943,12 @@ function Header({ config }: { config: ModuleConfig }) {
           {config.description}
         </p>
       </div>
-      <button className="flex h-10 items-center gap-2 rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849e8)] px-3 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(104,73,232,.22)] transition hover:-translate-y-0.5">
-        {config.action}
-        <AdminIcon name="external" className="h-3.5 w-3.5" />
-      </button>
+      {action ?? (
+        <button className="flex h-10 items-center gap-2 rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849e8)] px-3 text-[10px] font-semibold text-white shadow-[0_10px_28px_rgba(104,73,232,.22)] transition hover:-translate-y-0.5">
+          {config.action}
+          <AdminIcon name="external" className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -877,6 +983,70 @@ function Metrics({ metrics }: { metrics: Metric[] }) {
           </span>
         </Card>
       ))}
+    </div>
+  );
+}
+
+function AdminMetricsSkeleton() {
+  return (
+    <div
+      className="mb-4 grid grid-cols-4 gap-3 max-[1050px]:grid-cols-2 max-[540px]:grid-cols-1"
+      aria-label="Loading management metrics"
+    >
+      {Array.from({ length: 4 }, (_, index) => (
+        <Card className="h-[112px] overflow-hidden p-3" key={index}>
+          <div className="animate-pulse">
+            <div className="h-2.5 w-20 rounded-full bg-white/[.055]" />
+            <div className="mt-5 h-7 w-14 rounded-lg bg-white/[.065]" />
+            <div className="mt-3 h-2 w-24 rounded-full bg-white/[.04]" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function AdminManagementTableSkeleton({ columns = 6 }: { columns?: number }) {
+  return (
+    <div aria-label="Loading management records">
+      <Card className="overflow-hidden">
+        <div className="border-b border-white/[.06] p-3">
+          <div className="grid grid-cols-[minmax(220px,1fr)_150px_150px_150px] gap-2 max-[700px]:grid-cols-2 max-[480px]:grid-cols-1">
+            <div className="h-10 animate-pulse rounded-xl bg-white/[.035] max-[700px]:col-span-2 max-[480px]:col-span-1" />
+            <div className="h-10 animate-pulse rounded-xl bg-white/[.035]" />
+            <div className="h-10 animate-pulse rounded-xl bg-white/[.035]" />
+            <div className="h-10 animate-pulse rounded-xl bg-white/[.035] max-[700px]:hidden" />
+          </div>
+        </div>
+        <div className="overflow-hidden">
+          <div
+            className="grid gap-4 border-b border-white/[.05] bg-white/[.012] p-3"
+            style={{ gridTemplateColumns: `repeat(${columns}, minmax(80px, 1fr))` }}
+          >
+            {Array.from({ length: columns }, (_, index) => (
+              <div key={index} className="h-2 animate-pulse rounded-full bg-white/[.035]" />
+            ))}
+          </div>
+          {Array.from({ length: 6 }, (_, row) => (
+            <div
+              key={row}
+              className="grid min-h-[61px] items-center gap-4 border-b border-white/[.04] p-3 last:border-0"
+              style={{ gridTemplateColumns: `repeat(${columns}, minmax(80px, 1fr))` }}
+            >
+              {Array.from({ length: columns }, (_, column) => (
+                <div
+                  key={column}
+                  className={`animate-pulse rounded-full bg-white/[.035] ${column === 0 ? "h-3 w-3/4" : "h-2.5 w-2/3"}`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between border-t border-white/[.05] p-3">
+          <div className="h-2.5 w-32 animate-pulse rounded-full bg-white/[.035]" />
+          <div className="h-8 w-44 animate-pulse rounded-lg bg-white/[.035]" />
+        </div>
+      </Card>
     </div>
   );
 }
@@ -1002,17 +1172,26 @@ function AdminUserActionMenu({
   user,
   busy,
   onViewDetails,
+  onViewWallets,
+  onViewNfts,
   onStatus,
 }: {
   user: AdminManagedUser;
   busy: boolean;
   onViewDetails: () => void;
+  onViewWallets: () => void;
+  onViewNfts: () => void;
   onStatus: (status: "ACTIVE" | "REVIEW" | "SUSPENDED") => void;
 }) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
+  const [menuPosition, setMenuPosition] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+    maxHeight: number;
+  }>({ top: 0, right: 0, maxHeight: 0 });
 
   useEffect(() => {
     if (!open) return;
@@ -1050,15 +1229,21 @@ function AdminUserActionMenu({
 
     const estimatedMenuHeight = user.role === "Creator" ? 342 : 304;
     const spaceBelow = window.innerHeight - trigger.bottom - 8;
-    const top =
-      spaceBelow >= estimatedMenuHeight
-        ? trigger.bottom + 8
-        : Math.max(8, trigger.top - estimatedMenuHeight - 8);
+    const right = Math.max(8, window.innerWidth - trigger.right);
 
-    setMenuPosition({
-      top,
-      right: Math.max(8, window.innerWidth - trigger.right),
-    });
+    if (spaceBelow >= estimatedMenuHeight) {
+      setMenuPosition({
+        top: trigger.bottom + 8,
+        right,
+        maxHeight: Math.max(120, spaceBelow),
+      });
+    } else {
+      setMenuPosition({
+        bottom: window.innerHeight - trigger.top + 8,
+        right,
+        maxHeight: Math.max(120, trigger.top - 16),
+      });
+    }
     setOpen(true);
   };
   const itemClass =
@@ -1086,8 +1271,8 @@ function AdminUserActionMenu({
             <div
               ref={menuRef}
               role="menu"
-              style={{ top: menuPosition.top, right: menuPosition.right }}
-              className="admin-sidebar-scroll fixed z-[150] max-h-[calc(100vh-16px)] w-[175px] overflow-y-auto rounded-[18px] border border-white/[.09] bg-[rgba(8,11,23,.98)] p-2 text-left shadow-[0_24px_70px_rgba(0,0,0,.58)] backdrop-blur-2xl"
+              style={menuPosition}
+              className="admin-sidebar-scroll fixed z-[150] w-[175px] overflow-y-auto rounded-[18px] border border-white/[.09] bg-[rgba(8,11,23,.98)] p-2 text-left shadow-[0_24px_70px_rgba(0,0,0,.58)] backdrop-blur-2xl"
             >
               <div className="grid gap-1">
                 <button
@@ -1102,24 +1287,32 @@ function AdminUserActionMenu({
                   <AdminIcon name="eye" className="h-4 w-4 text-[#9e8bed]" />
                   View Details
                 </button>
-                <button type="button" className={itemClass} onClick={close} role="menuitem">
-                  <AdminIcon name="users" className="h-4 w-4 text-[#82a9e9]" />
-                  View User Profile
-                </button>
-                {user.role === "Creator" ? (
-                  <button type="button" className={itemClass} onClick={close} role="menuitem">
-                    <AdminIcon name="creators" className="h-4 w-4 text-[#b096f7]" />
-                    View Creator Profile
-                  </button>
-                ) : null}
-                <button type="button" className={itemClass} onClick={close} role="menuitem">
+                <button
+                  type="button"
+                  className={itemClass}
+                  onClick={() => {
+                    close();
+                    onViewWallets();
+                  }}
+                  role="menuitem"
+                >
                   <AdminIcon name="wallet" className="h-4 w-4 text-cyan-300" />
                   View Wallets
                 </button>
-                <button type="button" className={itemClass} onClick={close} role="menuitem">
-                  <AdminIcon name="nfts" className="h-4 w-4 text-[#a28df1]" />
-                  View NFTs
-                </button>
+                {user.role === "Creator" ? (
+                  <button
+                    type="button"
+                    className={itemClass}
+                    onClick={() => {
+                      close();
+                      onViewNfts();
+                    }}
+                    role="menuitem"
+                  >
+                    <AdminIcon name="nfts" className="h-4 w-4 text-[#a28df1]" />
+                    View NFTs
+                  </button>
+                ) : null}
                 <button type="button" className={itemClass} onClick={close} role="menuitem">
                   <AdminIcon name="transactions" className="h-4 w-4 text-emerald-300" />
                   View Transactions
@@ -1177,6 +1370,527 @@ function AdminUserActionMenu({
           )
         : null}
     </div>
+  );
+}
+
+function AdminUserWalletsModal({
+  open,
+  loading,
+  error,
+  user,
+  onClose,
+  onRetry,
+}: {
+  open: boolean;
+  loading: boolean;
+  error: string | null;
+  user: AdminUserWallets | null;
+  onClose: () => void;
+  onRetry: () => void;
+}) {
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [onClose, open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  const networkName = (chainId: number) =>
+    chainId === 84532
+      ? "Base Sepolia"
+      : chainId === 11155111
+        ? "Ethereum Sepolia"
+        : chainId === 80002
+          ? "Polygon Amoy"
+          : `Chain ${chainId}`;
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    }).format(new Date(value));
+  const copyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      window.setTimeout(() => setCopiedAddress(null), 1800);
+    } catch {
+      setCopiedAddress(null);
+    }
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] grid place-items-center bg-[rgba(2,4,11,.84)] p-3 backdrop-blur-md sm:p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label="User wallets"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section className="admin-sidebar-scroll flex max-h-[88vh] w-full max-w-[680px] flex-col overflow-hidden rounded-[24px] border border-white/[.09] bg-[rgba(8,11,23,.99)] shadow-[0_34px_110px_rgba(0,0,0,.72)]">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[.06] p-4 sm:p-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-cyan-300/[.14] bg-cyan-400/[.08] text-cyan-300">
+              <AdminIcon name="wallet" className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="m-0 truncate text-lg font-semibold text-[#edf0f7] sm:text-xl">
+                Connected wallets
+              </h2>
+              <p className="m-0 mt-1 truncate text-xs leading-5 text-[#778298]">
+                {loading
+                  ? "Loading wallet connections…"
+                  : `${user?.name || "User"} · ${user?.wallets.length || 0} connected`}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-white/[.08] text-[#8994a8] transition hover:bg-white/[.05] hover:text-white"
+            aria-label="Close wallets"
+          >
+            <AdminIcon name="close" className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="admin-sidebar-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+          {loading ? (
+            <div className="space-y-3" aria-label="Loading wallets">
+              {Array.from({ length: 2 }, (_, index) => (
+                <div
+                  key={index}
+                  className="h-[142px] animate-pulse rounded-[18px] border border-white/[.04] bg-white/[.025]"
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="grid min-h-[260px] place-items-center text-center">
+              <div className="max-w-[360px]">
+                <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl border border-rose-300/[.14] bg-rose-400/[.08] text-rose-300">
+                  <AdminIcon name="wallet" className="h-5 w-5" />
+                </span>
+                <h3 className="mb-0 mt-4 text-base font-semibold text-[#e9edf5]">
+                  Could not load wallets
+                </h3>
+                <p className="mb-4 mt-2 text-sm leading-6 text-[#8b96aa]">{error}</p>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="h-9 cursor-pointer rounded-xl bg-violet-500 px-4 text-xs font-semibold text-white transition hover:bg-violet-400"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          ) : user?.wallets.length ? (
+            <div className="space-y-3">
+              {user.wallets.map((wallet) => (
+                <article
+                  key={wallet.id}
+                  className="rounded-[18px] border border-white/[.065] bg-[linear-gradient(120deg,rgba(34,211,238,.065),rgba(124,91,241,.035))] p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-cyan-300/[.12] bg-[#0b1420] text-cyan-300">
+                        <AdminIcon name="networks" className="h-[18px] w-[18px]" />
+                      </span>
+                      <div>
+                        <h3 className="m-0 text-sm font-semibold text-[#dce5ee]">
+                          {networkName(wallet.chainId)}
+                        </h3>
+                        <p className="m-0 mt-1 text-[10px] font-medium uppercase tracking-wider text-[#718096]">
+                          Chain ID {wallet.chainId}
+                        </p>
+                      </div>
+                    </div>
+                    {wallet.isPrimary ? (
+                      <span className="rounded-full border border-emerald-300/[.14] bg-emerald-400/[.08] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-emerald-300">
+                        Primary
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-white/[.07] bg-white/[.025] px-2.5 py-1 text-[10px] font-medium uppercase tracking-wide text-[#8b96aa]">
+                        Connected
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-white/[.055] bg-[#070a14]/70 p-3">
+                    <span className="block text-[10px] font-medium uppercase tracking-wider text-[#69758a]">
+                      Wallet address
+                    </span>
+                    <div className="mt-2 flex items-center gap-2">
+                      <code className="min-w-0 flex-1 break-all text-[11px] leading-5 text-[#b8c3d2]">
+                        {wallet.address}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => void copyAddress(wallet.address)}
+                        className="h-8 shrink-0 cursor-pointer rounded-lg border border-white/[.08] px-3 text-[10px] font-semibold text-[#9da8b9] transition hover:border-cyan-300/20 hover:bg-cyan-400/[.06] hover:text-cyan-200"
+                        aria-label={`Copy wallet address ${wallet.address}`}
+                      >
+                        {copiedAddress === wallet.address ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-3 text-[10px]">
+                    <span className="uppercase tracking-wide text-[#69758a]">Connected on</span>
+                    <span className="font-medium text-[#9ea9ba]">
+                      {formatDate(wallet.connectedAt)}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="grid min-h-[260px] place-items-center text-center">
+              <div className="max-w-[320px]">
+                <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-dashed border-white/[.12] text-[#667187]">
+                  <AdminIcon name="wallet" className="h-5 w-5" />
+                </span>
+                <h3 className="mb-0 mt-4 text-sm font-semibold text-[#dce1eb]">
+                  No wallets connected
+                </h3>
+                <p className="mb-0 mt-2 text-xs leading-5 text-[#778298]">
+                  This user has not connected a wallet to their account yet.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>,
+    document.body,
+  );
+}
+
+function AdminNftArtwork({
+  nft,
+}: {
+  nft: { id: string; name: string; mediaCid: string; mediaUri: string };
+}) {
+  const sources = useMemo(() => {
+    const directUri = nft.mediaUri.startsWith("ipfs://")
+      ? `https://ipfs.io/ipfs/${nft.mediaUri.slice(7)}`
+      : nft.mediaUri;
+    return Array.from(
+      new Set(
+        [
+          `${API_URL}/api/nfts/${nft.id}/media`,
+          directUri,
+          `https://${nft.mediaCid}.ipfs.w3s.link/`,
+          `https://${nft.mediaCid}.ipfs.dweb.link/`,
+          `https://ipfs.io/ipfs/${nft.mediaCid}`,
+          `https://nftstorage.link/ipfs/${nft.mediaCid}`,
+        ].filter(Boolean),
+      ),
+    );
+  }, [nft.id, nft.mediaCid, nft.mediaUri]);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (loaded || failed) return;
+    const timeout = window.setTimeout(
+      () => {
+        if (sourceIndex < sources.length - 1) setSourceIndex((index) => index + 1);
+        else setFailed(true);
+      },
+      sourceIndex === 0 ? 30_000 : 8_000,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [failed, loaded, sourceIndex, sources.length]);
+
+  return (
+    <div className="absolute inset-0 bg-[#111629]">
+      {!failed ? (
+        // IPFS availability varies by gateway, so the native image can rotate
+        // through the API redirect and several public gateway fallbacks.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={sources[sourceIndex]}
+          alt={nft.name}
+          loading="lazy"
+          className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setLoaded(true)}
+          onError={() => {
+            setLoaded(false);
+            if (sourceIndex < sources.length - 1) setSourceIndex((index) => index + 1);
+            else setFailed(true);
+          }}
+        />
+      ) : (
+        <div className="grid h-full place-items-center text-center text-[10px] text-[#69758a]">
+          <span>
+            <AdminIcon name="nfts" className="mx-auto mb-2 h-7 w-7 text-[#7767b8]" />
+            Artwork unavailable
+          </span>
+        </div>
+      )}
+      {!loaded && !failed ? (
+        <span className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,#11172a_18%,#1a2340_42%,#11172a_66%)] bg-[length:220%_100%]" />
+      ) : null}
+    </div>
+  );
+}
+
+function AdminUserNftsModal({
+  open,
+  loading,
+  error,
+  data,
+  onClose,
+  onRetry,
+  onPageChange,
+}: {
+  open: boolean;
+  loading: boolean;
+  error: string | null;
+  data: AdminUserNftsPayload["data"];
+  onClose: () => void;
+  onRetry: () => void;
+  onPageChange: (page: number) => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeEscape = (event: KeyboardEvent) => event.key === "Escape" && onClose();
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [onClose, open]);
+
+  if (!open || typeof document === "undefined") return null;
+  const networkName = (chainId: number) =>
+    chainId === 84532
+      ? "Base Sepolia"
+      : chainId === 11155111
+        ? "Ethereum Sepolia"
+        : chainId === 80002
+          ? "Polygon Amoy"
+          : `Chain ${chainId}`;
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", year: "numeric" }).format(
+      new Date(value),
+    );
+  const short = (value: string) =>
+    value.length > 20 ? `${value.slice(0, 8)}…${value.slice(-6)}` : value;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[210] grid place-items-center bg-[rgba(2,4,11,.86)] p-3 backdrop-blur-md sm:p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Creator NFTs"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <section className="flex max-h-[92vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-[24px] border border-white/[.09] bg-[rgba(8,11,23,.99)] shadow-[0_34px_110px_rgba(0,0,0,.72)]">
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[.06] p-4 sm:p-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-violet-300/[.14] bg-violet-400/[.08] text-[#b6a4fa]">
+              <AdminIcon name="nfts" className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h2 className="m-0 truncate text-lg font-semibold text-[#edf0f7] sm:text-xl">
+                {data?.creator.name || "Creator NFTs"}
+              </h2>
+              <p className="m-0 mt-1 text-xs text-[#778298]">
+                {loading && !data
+                  ? "Loading NFT inventory…"
+                  : `${data?.pagination.total ?? 0} NFT${data?.pagination.total === 1 ? "" : "s"} created`}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-xl border border-white/[.08] text-[#8994a8] hover:bg-white/[.05] hover:text-white"
+            aria-label="Close creator NFTs"
+          >
+            <AdminIcon name="close" className="h-4 w-4" />
+          </button>
+        </header>
+
+        <div className="admin-sidebar-scroll min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+          {loading && !data ? (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              {Array.from({ length: 6 }, (_, index) => (
+                <div
+                  key={index}
+                  className="h-[340px] animate-pulse rounded-[18px] bg-white/[.03]"
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="grid min-h-[330px] place-items-center text-center">
+              <div>
+                <h3 className="text-base font-semibold text-[#e9edf5]">Could not load NFTs</h3>
+                <p className="text-sm text-[#8b96aa]">{error}</p>
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="mt-2 h-9 rounded-xl bg-violet-500 px-4 text-xs font-semibold text-white"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          ) : data?.nfts.length ? (
+            <div
+              className={`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 ${loading ? "opacity-60" : ""}`}
+            >
+              {data.nfts.map((nft) => (
+                <article
+                  key={nft.id}
+                  className="overflow-hidden rounded-[18px] border border-white/[.07] bg-white/[.022]"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden bg-[#111629]">
+                    {nft.mediaMimeType.startsWith("image/") ? (
+                      <AdminNftArtwork nft={nft} />
+                    ) : (
+                      <div className="grid h-full place-items-center text-[#7767b8]">
+                        <AdminIcon name="nfts" className="h-8 w-8" />
+                      </div>
+                    )}
+                    <span className="absolute right-2 top-2 rounded-full border border-white/10 bg-[#080b16]/90 px-2 py-1 text-[9px] font-semibold text-[#c4b7f8]">
+                      {nft.status.replaceAll("_", " ")}
+                    </span>
+                    {nft.archivedAt ? (
+                      <span className="absolute left-2 top-2 rounded-full bg-rose-500/90 px-2 py-1 text-[9px] font-semibold text-white">
+                        Archived
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="m-0 truncate text-sm font-semibold text-[#e1e5ed]">
+                          {nft.name}
+                        </h3>
+                        <p className="m-0 mt-1 truncate text-[10px] capitalize text-[#788398]">
+                          {nft.collectionSlug.replaceAll("-", " ")} · {nft.category}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[10px] font-medium text-[#a995f2]">
+                        {nft.tokenId ? `#${nft.tokenId}` : "Draft"}
+                      </span>
+                    </div>
+                    <p className="mb-0 mt-3 line-clamp-2 min-h-10 text-[10px] leading-5 text-[#8994a8]">
+                      {nft.description || "No description provided."}
+                    </p>
+                    <div className="mt-3 grid grid-cols-3 gap-1.5">
+                      {[
+                        ["Network", networkName(nft.chainId)],
+                        ["Standard", nft.standard.replace("ERC", "ERC-")],
+                        ["Supply", nft.supply.toLocaleString()],
+                      ].map(([label, value]) => (
+                        <div key={label} className="min-w-0 rounded-lg bg-[#080b16] p-2">
+                          <span className="block text-[8px] uppercase tracking-wide text-[#59657a]">
+                            {label}
+                          </span>
+                          <strong className="mt-1 block truncate text-[9px] font-medium text-[#abb4c4]">
+                            {value}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3 space-y-1.5 border-t border-white/[.05] pt-3 text-[9px] text-[#758196]">
+                      <div className="flex justify-between gap-3">
+                        <span>Wallet</span>
+                        <code className="text-[#aab3c2]">{short(nft.creatorWallet)}</code>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Royalty</span>
+                        <span className="text-[#aab3c2]">{nft.royaltyBps / 100}%</span>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <span>Created</span>
+                        <span className="text-[#aab3c2]">{formatDate(nft.createdAt)}</span>
+                      </div>
+                      {nft.contractAddress ? (
+                        <div className="flex justify-between gap-3">
+                          <span>Contract</span>
+                          <code className="text-[#aab3c2]">{short(nft.contractAddress)}</code>
+                        </div>
+                      ) : null}
+                    </div>
+                    {nft.failureReason ? (
+                      <p className="mb-0 mt-3 rounded-lg border border-rose-300/10 bg-rose-400/[.06] p-2 text-[9px] leading-4 text-rose-300">
+                        {nft.failureReason}
+                      </p>
+                    ) : null}
+                    {nft.traits.length ? (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {nft.traits.slice(0, 4).map((trait) => (
+                          <span
+                            key={`${trait.traitType}-${trait.value}`}
+                            className="rounded-md bg-violet-400/[.07] px-2 py-1 text-[8px] text-[#a899df]"
+                          >
+                            {trait.traitType}: {trait.value}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="grid min-h-[330px] place-items-center text-center">
+              <div>
+                <AdminIcon name="nfts" className="mx-auto h-8 w-8 text-[#625684]" />
+                <h3 className="mt-4 text-sm font-semibold text-[#dce1eb]">No NFTs created yet</h3>
+                <p className="text-xs text-[#778298]">
+                  This creator does not have any NFT records.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        {data && data.pagination.pages > 1 ? (
+          <footer className="flex items-center justify-between border-t border-white/[.06] p-3 sm:px-5">
+            <span className="text-[10px] text-[#6e7a8f]">
+              Page {data.pagination.page} of {data.pagination.pages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={loading || data.pagination.page <= 1}
+                onClick={() => onPageChange(data.pagination.page - 1)}
+                className="h-8 rounded-lg border border-white/[.08] px-3 text-[10px] text-[#9aa5b7] disabled:opacity-35"
+              >
+                Previous
+              </button>
+              <button
+                disabled={loading || data.pagination.page >= data.pagination.pages}
+                onClick={() => onPageChange(data.pagination.page + 1)}
+                className="h-8 rounded-lg border border-white/[.08] px-3 text-[10px] text-[#9aa5b7] disabled:opacity-35"
+              >
+                Next
+              </button>
+            </div>
+          </footer>
+        ) : null}
+      </section>
+    </div>,
+    document.body,
   );
 }
 
@@ -1248,7 +1962,7 @@ function AdminUserDetailsModal({
               <h2 className="m-0 truncate text-[17px] font-semibold text-[#edf0f7] sm:text-[19px]">
                 {loading ? "Loading user…" : user?.name || "User details"}
               </h2>
-              <p className="m-0 mt-1 truncate text-[9px] text-[#657087]">
+              <p className="m-0 mt-1 truncate text-xs leading-5 text-[#778298]">
                 Account identity, access and marketplace activity
               </p>
             </div>
@@ -1283,14 +1997,14 @@ function AdminUserDetailsModal({
                 <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl border border-rose-300/[.14] bg-rose-400/[.08] text-rose-300">
                   <AdminIcon name="userX" className="h-5 w-5" />
                 </span>
-                <h3 className="mb-0 mt-4 text-[13px] text-[#e9edf5]">
+                <h3 className="mb-0 mt-4 text-base font-semibold text-[#e9edf5]">
                   Could not load user details
                 </h3>
-                <p className="mb-4 mt-2 text-[10px] leading-5 text-[#778298]">{error}</p>
+                <p className="mb-4 mt-2 text-sm leading-6 text-[#8b96aa]">{error}</p>
                 <button
                   type="button"
                   onClick={onRetry}
-                  className="h-9 cursor-pointer rounded-xl bg-violet-500 px-4 text-[10px] font-semibold text-white transition hover:bg-violet-400"
+                  className="h-9 cursor-pointer rounded-xl bg-violet-500 px-4 text-xs font-semibold text-white transition hover:bg-violet-400"
                 >
                   Try again
                 </button>
@@ -1303,16 +2017,18 @@ function AdminUserDetailsModal({
                   {user.name.slice(0, 2).toUpperCase()}
                 </span>
                 <div className="min-w-[180px] flex-1">
-                  <h3 className="m-0 text-[14px] font-semibold text-[#eef1f7]">{user.name}</h3>
-                  <p className="m-0 mt-1 text-[9px] text-[#778298]">
+                  <h3 className="m-0 text-base font-semibold leading-6 text-[#eef1f7]">
+                    {user.name}
+                  </h3>
+                  <p className="m-0 mt-1 text-xs leading-5 text-[#8b96aa]">
                     {user.username} · {user.email}
                   </p>
-                  <span className="mt-2 inline-flex rounded-full border border-violet-300/[.14] bg-violet-400/[.08] px-2.5 py-1 text-[8px] font-semibold text-[#b7a4ff]">
+                  <span className="mt-2 inline-flex rounded-full border border-violet-300/[.14] bg-violet-400/[.08] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#b7a4ff]">
                     {user.role}
                   </span>
                 </div>
                 <span
-                  className={`rounded-full border px-3 py-1.5 text-[9px] ${user.status === "ACTIVE" ? "border-emerald-300/[.14] bg-emerald-400/[.08] text-emerald-300" : user.status === "REVIEW" ? "border-amber-300/[.14] bg-amber-400/[.08] text-amber-300" : "border-rose-300/[.14] bg-rose-400/[.08] text-rose-300"}`}
+                  className={`rounded-full border px-3 py-1.5 text-[10px] font-medium capitalize tracking-wide ${user.status === "ACTIVE" ? "border-emerald-300/[.14] bg-emerald-400/[.08] text-emerald-300" : user.status === "REVIEW" ? "border-amber-300/[.14] bg-amber-400/[.08] text-amber-300" : "border-rose-300/[.14] bg-rose-400/[.08] text-rose-300"}`}
                 >
                   {user.status === "REVIEW" ? "Under review" : user.status.toLowerCase()}
                 </span>
@@ -1329,8 +2045,10 @@ function AdminUserDetailsModal({
                     key={label}
                     className="rounded-xl border border-white/[.055] bg-white/[.022] p-3"
                   >
-                    <span className="block text-[8px] text-[#667187]">{label}</span>
-                    <strong className="mt-1.5 block text-[16px] font-semibold text-[#e2e7f0]">
+                    <span className="block text-[10px] font-medium uppercase tracking-wider text-[#778298]">
+                      {label}
+                    </span>
+                    <strong className="mt-1.5 block text-lg font-semibold leading-6 text-[#e2e7f0]">
                       {value}
                     </strong>
                   </div>
@@ -1339,7 +2057,7 @@ function AdminUserDetailsModal({
 
               <div className="grid grid-cols-2 gap-3 max-[680px]:grid-cols-1">
                 <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
-                  <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">
+                  <h3 className="m-0 text-sm font-semibold leading-5 text-[#dce1eb]">
                     Account information
                   </h3>
                   <div className="mt-3 grid gap-2">
@@ -1355,8 +2073,10 @@ function AdminUserDetailsModal({
                         key={label}
                         className="flex items-start justify-between gap-4 border-b border-white/[.045] py-2 last:border-0"
                       >
-                        <span className="shrink-0 text-[8px] text-[#626e83]">{label}</span>
-                        <span className="break-all text-right text-[9px] capitalize text-[#aeb7c8]">
+                        <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-[#717d92]">
+                          {label}
+                        </span>
+                        <span className="break-all text-right text-xs leading-5 capitalize text-[#b7c0cf]">
                           {value}
                         </span>
                       </div>
@@ -1365,7 +2085,7 @@ function AdminUserDetailsModal({
                 </div>
 
                 <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
-                  <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">
+                  <h3 className="m-0 text-sm font-semibold leading-5 text-[#dce1eb]">
                     Connected wallets
                   </h3>
                   <div className="mt-3 grid gap-2">
@@ -1376,22 +2096,22 @@ function AdminUserDetailsModal({
                           className="rounded-xl border border-white/[.05] bg-[#080b16] p-3"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[9px] font-medium text-[#a996f1]">
+                            <span className="text-xs font-medium text-[#b7a4ff]">
                               {networkName(wallet.chainId)}
                             </span>
                             {wallet.isPrimary ? (
-                              <span className="rounded-full bg-emerald-400/[.08] px-2 py-1 text-[7px] text-emerald-300">
+                              <span className="rounded-full bg-emerald-400/[.08] px-2 py-1 text-[10px] font-medium text-emerald-300">
                                 Primary
                               </span>
                             ) : null}
                           </div>
-                          <p className="mb-0 mt-2 break-all font-mono text-[8px] leading-4 text-[#7c879a]">
+                          <p className="mb-0 mt-2 break-all font-mono text-[10px] leading-5 text-[#8b96aa]">
                             {wallet.address}
                           </p>
                         </div>
                       ))
                     ) : (
-                      <p className="m-0 rounded-xl border border-dashed border-white/[.07] p-5 text-center text-[9px] text-[#657087]">
+                      <p className="m-0 rounded-xl border border-dashed border-white/[.07] p-5 text-center text-xs text-[#778298]">
                         No wallet connected.
                       </p>
                     )}
@@ -1402,16 +2122,14 @@ function AdminUserDetailsModal({
               {user.creator ? (
                 <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">
+                    <h3 className="m-0 text-sm font-semibold leading-5 text-[#dce1eb]">
                       Creator application
                     </h3>
-                    <span className="rounded-full border border-violet-300/[.12] bg-violet-400/[.07] px-2.5 py-1 text-[8px] capitalize text-[#b5a3f5]">
+                    <span className="rounded-full border border-violet-300/[.12] bg-violet-400/[.07] px-2.5 py-1 text-[10px] font-medium capitalize tracking-wide text-[#b5a3f5]">
                       {user.creator.status}
                     </span>
                   </div>
-                  <p className="mb-0 mt-3 text-[9px] leading-5 text-[#8490a5]">
-                    {user.creator.bio}
-                  </p>
+                  <p className="mb-0 mt-3 text-xs leading-5 text-[#929db0]">{user.creator.bio}</p>
                   <div className="mt-3 grid grid-cols-3 gap-2 max-[560px]:grid-cols-1">
                     {[
                       ["Type", user.creator.creatorType],
@@ -1422,8 +2140,10 @@ function AdminUserDetailsModal({
                         key={label}
                         className="rounded-xl border border-white/[.05] bg-[#080b16] p-3"
                       >
-                        <span className="block text-[8px] text-[#606c81]">{label}</span>
-                        <strong className="mt-1 block text-[9px] capitalize text-[#b7c0cf]">
+                        <span className="block text-[10px] font-medium uppercase tracking-wide text-[#717d92]">
+                          {label}
+                        </span>
+                        <strong className="mt-1 block text-xs font-medium capitalize leading-5 text-[#c2c9d5]">
                           {value}
                         </strong>
                       </div>
@@ -1431,39 +2151,6 @@ function AdminUserDetailsModal({
                   </div>
                 </div>
               ) : null}
-
-              <div className="rounded-[18px] border border-white/[.06] bg-white/[.018] p-3">
-                <h3 className="m-0 text-[11px] font-semibold text-[#dce1eb]">Recent NFTs</h3>
-                <div className="mt-3 grid gap-1">
-                  {user.recentNfts.length ? (
-                    user.recentNfts.map((nft) => (
-                      <div
-                        key={nft.id}
-                        className="flex items-center gap-3 rounded-xl p-2.5 transition hover:bg-white/[.025]"
-                      >
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-violet-400/[.07] text-[#a895ef]">
-                          <AdminIcon name="nfts" className="h-4 w-4" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <strong className="block truncate text-[9px] text-[#cfd5e0]">
-                            {nft.name}
-                          </strong>
-                          <span className="mt-1 block text-[8px] text-[#626e83]">
-                            {networkName(nft.chainId)} · {formatDate(nft.createdAt)}
-                          </span>
-                        </div>
-                        <span className="text-[8px] text-[#8c98aa]">
-                          {nft.tokenId ? `#${nft.tokenId}` : nft.status.replaceAll("_", " ")}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="m-0 rounded-xl border border-dashed border-white/[.07] p-5 text-center text-[9px] text-[#657087]">
-                      No NFTs created yet.
-                    </p>
-                  )}
-                </div>
-              </div>
             </div>
           ) : null}
         </div>
@@ -1486,11 +2173,23 @@ function AdminUsers() {
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [exporting, setExporting] = useState<"csv" | "json" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
   const [detailUser, setDetailUser] = useState<AdminUserDetails | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [walletUserId, setWalletUserId] = useState<string | null>(null);
+  const [walletUser, setWalletUser] = useState<AdminUserWallets | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const detailRequestRef = useRef(0);
+  const walletRequestRef = useRef(0);
+  const [nftUserId, setNftUserId] = useState<string | null>(null);
+  const [nftData, setNftData] = useState<AdminUserNftsPayload["data"]>(null);
+  const [nftLoading, setNftLoading] = useState(false);
+  const [nftError, setNftError] = useState<string | null>(null);
+  const nftRequestRef = useRef(0);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -1587,6 +2286,161 @@ function AdminUsers() {
     }
   };
 
+  const loadUserWallets = async (userId: string) => {
+    const requestId = ++walletRequestRef.current;
+    setWalletUserId(userId);
+    setWalletUser(null);
+    setWalletError(null);
+    setWalletLoading(true);
+    try {
+      const response = await adminGraphql<AdminUserWalletsPayload>(ADMIN_USER_WALLETS_QUERY, {
+        userId,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      if (requestId !== walletRequestRef.current) return;
+      setWalletUser(response.data);
+    } catch (requestError) {
+      if (requestId !== walletRequestRef.current) return;
+      setWalletError(
+        requestError instanceof Error ? requestError.message : "Could not load user wallets.",
+      );
+    } finally {
+      if (requestId === walletRequestRef.current) setWalletLoading(false);
+    }
+  };
+
+  const loadUserNfts = async (userId: string, requestedPage = 1) => {
+    const requestId = ++nftRequestRef.current;
+    setNftUserId(userId);
+    if (requestedPage === 1) setNftData(null);
+    setNftError(null);
+    setNftLoading(true);
+    try {
+      const response = await adminGraphql<AdminUserNftsPayload>(ADMIN_USER_NFTS_QUERY, {
+        userId,
+        page: requestedPage,
+        limit: 12,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      if (requestId !== nftRequestRef.current) return;
+      setNftData(response.data);
+    } catch (requestError) {
+      if (requestId !== nftRequestRef.current) return;
+      setNftError(
+        requestError instanceof Error ? requestError.message : "Could not load creator NFTs.",
+      );
+    } finally {
+      if (requestId === nftRequestRef.current) setNftLoading(false);
+    }
+  };
+
+  const exportUsers = async (format: "csv" | "json") => {
+    setExporting(format);
+    setExportError(null);
+    try {
+      const input = adminUsersFilterSchema.parse({
+        page: 1,
+        limit: 1,
+        search: debouncedSearch,
+        status: status || undefined,
+        dateRange,
+        sort,
+      });
+      const response = await adminGraphql<AdminUsersExportPayload>(ADMIN_USERS_EXPORT_QUERY, {
+        input,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      if (response.data.truncated) {
+        throw new Error(
+          `Export contains more than ${response.data.exported.toLocaleString()} records. Narrow the filters and try again.`,
+        );
+      }
+
+      const date = new Date().toISOString().slice(0, 10);
+      let content: string;
+      let mimeType: string;
+      if (format === "json") {
+        content = JSON.stringify(
+          {
+            generatedAt: response.data.generatedAt,
+            total: response.data.total,
+            filters: { search: debouncedSearch, status: status || null, dateRange, sort },
+            users: response.data.users,
+          },
+          null,
+          2,
+        );
+        mimeType = "application/json;charset=utf-8";
+      } else {
+        const csvCell = (value: string | number | null) => {
+          let normalized = value == null ? "" : String(value);
+          // Prevent spreadsheet formula execution in user-controlled fields.
+          if (/^[=+\-@]/.test(normalized)) normalized = `'${normalized}`;
+          return `"${normalized.replaceAll('"', '""')}"`;
+        };
+        const headers = [
+          "User ID",
+          "Name",
+          "Username",
+          "Email",
+          "Role",
+          "Creator Status",
+          "Account Status",
+          "Primary Wallet",
+          "Wallet Network",
+          "Joined At",
+          "Last Active At",
+          "Total NFTs",
+        ];
+        const network = (chainId: number | null) =>
+          chainId === 84532
+            ? "Base Sepolia"
+            : chainId === 11155111
+              ? "Ethereum Sepolia"
+              : chainId === 80002
+                ? "Polygon Amoy"
+                : chainId
+                  ? `Chain ${chainId}`
+                  : "";
+        const rows = response.data.users.map((user) =>
+          [
+            user.id,
+            user.name,
+            user.username,
+            user.email,
+            user.role,
+            user.creatorStatus,
+            user.accountStatus,
+            user.primaryWallet,
+            network(user.walletChainId),
+            user.joinedAt,
+            user.lastActiveAt,
+            user.totalNfts,
+          ]
+            .map(csvCell)
+            .join(","),
+        );
+        content = `\uFEFF${headers.map(csvCell).join(",")}\r\n${rows.join("\r\n")}`;
+        mimeType = "text/csv;charset=utf-8";
+      }
+
+      const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `cryptonix-users-${date}.${format}`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (requestError) {
+      setExportError(
+        requestError instanceof Error ? requestError.message : "Could not export users.",
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
+
   const metrics: Metric[] = payload
     ? [
         {
@@ -1618,197 +2472,218 @@ function AdminUsers() {
 
   return (
     <>
-      <Header config={config} />
-      {loading && !payload ? (
-        <div className="mb-4 grid grid-cols-4 gap-3 max-[1050px]:grid-cols-2 max-[540px]:grid-cols-1">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Card className="h-[112px] animate-pulse bg-white/[.025]" key={index} />
-          ))}
+      <Header
+        config={config}
+        action={<AdminUsersExportMenu exporting={exporting} onExport={exportUsers} />}
+      />
+      {exportError ? (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-rose-300/[.12] bg-rose-400/[.06] px-3 py-2 text-[10px] text-rose-300">
+          <span>{exportError}</span>
+          <button
+            type="button"
+            onClick={() => setExportError(null)}
+            className="text-rose-200"
+            aria-label="Dismiss export error"
+          >
+            <AdminIcon name="close" className="h-3.5 w-3.5" />
+          </button>
         </div>
+      ) : null}
+      {loading && !payload ? (
+        <AdminMetricsSkeleton />
       ) : payload ? (
         <Metrics metrics={metrics} />
       ) : null}
 
-      <Card className="overflow-visible">
-        <div className="flex flex-wrap items-center gap-2 border-b border-white/[.06] p-3">
-          <label className="relative min-w-[220px] flex-1">
-            <AdminIcon
-              name="search"
-              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5d687c]"
-            />
-            <input
-              className="h-10 w-full rounded-xl border border-white/[.07] bg-[#080b16] pl-9 pr-3 text-[10px] outline-none placeholder:text-[#515c70] focus:border-violet-400/30"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search user management…"
-            />
-          </label>
-          <AdminFilterDropdown
-            label="Filter users by status"
-            value={status}
-            options={[
-              { value: "", label: "All statuses" },
-              { value: "ACTIVE", label: "Active" },
-              { value: "REVIEW", label: "Review" },
-              { value: "SUSPENDED", label: "Suspended" },
-            ]}
-            onChange={(value) => {
-              setStatus(value as typeof status);
-              setPage(1);
-            }}
-          />
-          <AdminFilterDropdown
-            label="Filter users by date"
-            value={dateRange}
-            options={[
-              { value: "ALL", label: "All time" },
-              { value: "TODAY", label: "Today" },
-              { value: "7_DAYS", label: "Last 7 days" },
-              { value: "30_DAYS", label: "Last 30 days" },
-            ]}
-            onChange={(value) => {
-              setDateRange(value as typeof dateRange);
-              setPage(1);
-            }}
-          />
-          <AdminFilterDropdown
-            label="Sort users"
-            value={sort}
-            options={[
-              { value: "NEWEST", label: "Newest" },
-              { value: "OLDEST", label: "Oldest" },
-              { value: "NAME_ASC", label: "Name A–Z" },
-            ]}
-            onChange={(value) => {
-              setSort(value as typeof sort);
-              setPage(1);
-            }}
-          />
-        </div>
-
-        {error ? (
-          <div className="p-8 text-center text-[10px] text-rose-300">{error}</div>
-        ) : loading && !payload ? (
-          <div className="space-y-px p-3">
-            {Array.from({ length: 6 }, (_, index) => (
-              <div className="h-[58px] animate-pulse rounded-xl bg-white/[.025]" key={index} />
-            ))}
-          </div>
-        ) : payload?.users.length ? (
-          <div className="overflow-x-auto admin-sidebar-scroll">
-            <table className="w-full min-w-[820px] border-collapse text-left">
-              <thead>
-                <tr>
-                  {["Account", "Wallet", "Role", "Joined", "Status", "Actions"].map((column) => (
-                    <th
-                      key={column}
-                      className={`border-b border-white/[.055] bg-white/[.012] p-3 text-[8px] font-bold uppercase tracking-[1px] text-[#505c70] ${column === "Actions" ? "text-right" : ""}`}
-                    >
-                      {column}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {payload.users.map((user) => {
-                  const style =
-                    user.status === "ACTIVE"
-                      ? toneClasses.green
-                      : user.status === "REVIEW"
-                        ? toneClasses.amber
-                        : toneClasses.rose;
-                  return (
-                    <tr
-                      key={user.id}
-                      className="group border-b border-white/[.045] last:border-0 hover:bg-white/[.018]"
-                    >
-                      <td className="p-3">
-                        <strong className="block text-[10px] font-semibold text-[#dde2ec]">
-                          {user.name}
-                        </strong>
-                        <span className="mt-1 block text-[9px] text-[#606c81]">
-                          {user.username}
-                        </span>
-                      </td>
-                      <td className="p-3 font-mono text-[9px] text-[#8d98aa]">
-                        {user.wallet.length > 18
-                          ? `${user.wallet.slice(0, 8)}…${user.wallet.slice(-6)}`
-                          : user.wallet}
-                      </td>
-                      <td className="p-3 text-[10px] text-[#8d98aa]">{user.role}</td>
-                      <td className="p-3 text-[10px] text-[#8d98aa]">
-                        {new Intl.DateTimeFormat("en", {
-                          month: "short",
-                          day: "2-digit",
-                          year: "numeric",
-                        }).format(new Date(user.joinedAt))}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] ${style.bg} ${style.border} ${style.text}`}
-                        >
-                          {user.status === "REVIEW"
-                            ? "Review"
-                            : user.status === "SUSPENDED"
-                              ? "Suspended"
-                              : "Active"}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <AdminUserActionMenu
-                          user={user}
-                          busy={actionId === user.id}
-                          onViewDetails={() => void loadUserDetails(user.id)}
-                          onStatus={(nextStatus) => void updateUserStatus(user, nextStatus)}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-10 text-center">
-            <strong className="text-[11px]">No users found</strong>
-            <p className="m-0 mt-2 text-[9px] text-[#637086]">
-              Change your filters or search query and try again.
-            </p>
-          </div>
-        )}
-
-        {payload ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[.055] p-3">
-            <span className="text-[9px] text-[#5d687c]">
-              Showing {payload.users.length} of {payload.pagination.total.toLocaleString()} records
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((value) => Math.max(1, value - 1))}
-                className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
-              >
-                <AdminIcon name="chevronLeft" className="h-3 w-3" />
-                Previous
-              </button>
-              <span className="grid h-8 min-w-8 place-items-center rounded-lg bg-violet-500 px-2 text-[9px] text-white">
-                {page}
-              </span>
-              <span className="px-1 text-[9px] text-[#5d687c]">
-                of {Math.max(1, payload.pagination.pages)}
-              </span>
-              <button
-                disabled={page >= payload.pagination.pages || loading}
-                onClick={() => setPage((value) => value + 1)}
-                className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
-              >
-                Next
-                <AdminIcon name="chevronRight" className="h-3 w-3" />
-              </button>
+      {loading && !payload ? (
+        <AdminManagementTableSkeleton />
+      ) : (
+        <Card className="overflow-visible">
+          <div className="flex flex-wrap items-center gap-2 border-b border-white/[.06] p-3">
+            <label className="relative min-w-[220px] flex-1 max-[700px]:w-full max-[700px]:min-w-0 max-[700px]:flex-none">
+              <AdminIcon
+                name="search"
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5d687c]"
+              />
+              <input
+                className="h-10 w-full rounded-xl border border-white/[.07] bg-[#080b16] pl-9 pr-3 text-[10px] outline-none placeholder:text-[#515c70] focus:border-violet-400/30"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search user management…"
+              />
+            </label>
+            <div className="flex shrink-0 gap-2 max-[700px]:grid max-[700px]:w-full max-[700px]:grid-cols-2 max-[480px]:grid-cols-1">
+              <AdminFilterDropdown
+                label="Filter users by status"
+                value={status}
+                options={[
+                  { value: "", label: "All statuses" },
+                  { value: "ACTIVE", label: "Active" },
+                  { value: "REVIEW", label: "Review" },
+                  { value: "SUSPENDED", label: "Suspended" },
+                ]}
+                onChange={(value) => {
+                  setStatus(value as typeof status);
+                  setPage(1);
+                }}
+              />
+              <AdminFilterDropdown
+                label="Filter users by date"
+                value={dateRange}
+                options={[
+                  { value: "ALL", label: "All time" },
+                  { value: "TODAY", label: "Today" },
+                  { value: "7_DAYS", label: "Last 7 days" },
+                  { value: "30_DAYS", label: "Last 30 days" },
+                ]}
+                onChange={(value) => {
+                  setDateRange(value as typeof dateRange);
+                  setPage(1);
+                }}
+              />
+              <AdminFilterDropdown
+                label="Sort users"
+                value={sort}
+                options={[
+                  { value: "NEWEST", label: "Newest" },
+                  { value: "OLDEST", label: "Oldest" },
+                  { value: "NAME_ASC", label: "Name A–Z" },
+                ]}
+                onChange={(value) => {
+                  setSort(value as typeof sort);
+                  setPage(1);
+                }}
+              />
             </div>
           </div>
-        ) : null}
-      </Card>
+
+          {error ? (
+            <div className="p-8 text-center text-[10px] text-rose-300">{error}</div>
+          ) : loading && !payload ? (
+            <div className="space-y-px p-3">
+              {Array.from({ length: 6 }, (_, index) => (
+                <div className="h-[58px] animate-pulse rounded-xl bg-white/[.025]" key={index} />
+              ))}
+            </div>
+          ) : payload?.users.length ? (
+            <div className="overflow-x-auto admin-sidebar-scroll">
+              <table className="w-full min-w-[820px] border-collapse text-left">
+                <thead>
+                  <tr>
+                    {["Account", "Wallet", "Role", "Joined", "Status", "Actions"].map((column) => (
+                      <th
+                        key={column}
+                        className={`border-b border-white/[.055] bg-white/[.012] p-3 text-[8px] font-bold uppercase tracking-[1px] text-[#505c70] ${column === "Actions" ? "text-right" : ""}`}
+                      >
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {payload.users.map((user) => {
+                    const style =
+                      user.status === "ACTIVE"
+                        ? toneClasses.green
+                        : user.status === "REVIEW"
+                          ? toneClasses.amber
+                          : toneClasses.rose;
+                    return (
+                      <tr
+                        key={user.id}
+                        className="group border-b border-white/[.045] last:border-0 hover:bg-white/[.018]"
+                      >
+                        <td className="p-3">
+                          <strong className="block text-[10px] font-semibold text-[#dde2ec]">
+                            {user.name}
+                          </strong>
+                          <span className="mt-1 block text-[9px] text-[#606c81]">
+                            {user.username}
+                          </span>
+                        </td>
+                        <td className="p-3 font-mono text-[9px] text-[#8d98aa]">
+                          {user.wallet.length > 18
+                            ? `${user.wallet.slice(0, 8)}…${user.wallet.slice(-6)}`
+                            : user.wallet}
+                        </td>
+                        <td className="p-3 text-[10px] text-[#8d98aa]">{user.role}</td>
+                        <td className="p-3 text-[10px] text-[#8d98aa]">
+                          {new Intl.DateTimeFormat("en", {
+                            month: "short",
+                            day: "2-digit",
+                            year: "numeric",
+                          }).format(new Date(user.joinedAt))}
+                        </td>
+                        <td className="p-3">
+                          <span
+                            className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] ${style.bg} ${style.border} ${style.text}`}
+                          >
+                            {user.status === "REVIEW"
+                              ? "Review"
+                              : user.status === "SUSPENDED"
+                                ? "Suspended"
+                                : "Active"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right">
+                          <AdminUserActionMenu
+                            user={user}
+                            busy={actionId === user.id}
+                            onViewDetails={() => void loadUserDetails(user.id)}
+                            onViewWallets={() => void loadUserWallets(user.id)}
+                            onViewNfts={() => void loadUserNfts(user.id)}
+                            onStatus={(nextStatus) => void updateUserStatus(user, nextStatus)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-10 text-center">
+              <strong className="text-[11px]">No users found</strong>
+              <p className="m-0 mt-2 text-[9px] text-[#637086]">
+                Change your filters or search query and try again.
+              </p>
+            </div>
+          )}
+
+          {payload ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/[.055] p-3">
+              <span className="text-[9px] text-[#5d687c]">
+                Showing {payload.users.length} of {payload.pagination.total.toLocaleString()}{" "}
+                records
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((value) => Math.max(1, value - 1))}
+                  className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
+                >
+                  <AdminIcon name="chevronLeft" className="h-3 w-3" />
+                  Previous
+                </button>
+                <span className="grid h-8 min-w-8 place-items-center rounded-lg bg-violet-500 px-2 text-[9px] text-white">
+                  {page}
+                </span>
+                <span className="px-1 text-[9px] text-[#5d687c]">
+                  of {Math.max(1, payload.pagination.pages)}
+                </span>
+                <button
+                  disabled={page >= payload.pagination.pages || loading}
+                  onClick={() => setPage((value) => value + 1)}
+                  className="flex h-8 items-center gap-1 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
+                >
+                  Next
+                  <AdminIcon name="chevronRight" className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      )}
       <AdminUserDetailsModal
         open={detailUserId !== null}
         loading={detailLoading}
@@ -1822,6 +2697,450 @@ function AdminUsers() {
         }}
         onRetry={() => {
           if (detailUserId) void loadUserDetails(detailUserId);
+        }}
+      />
+      <AdminUserWalletsModal
+        open={walletUserId !== null}
+        loading={walletLoading}
+        error={walletError}
+        user={walletUser}
+        onClose={() => {
+          walletRequestRef.current += 1;
+          setWalletUserId(null);
+          setWalletUser(null);
+          setWalletError(null);
+        }}
+        onRetry={() => {
+          if (walletUserId) void loadUserWallets(walletUserId);
+        }}
+      />
+      <AdminUserNftsModal
+        open={nftUserId !== null}
+        loading={nftLoading}
+        error={nftError}
+        data={nftData}
+        onClose={() => {
+          nftRequestRef.current += 1;
+          setNftUserId(null);
+          setNftData(null);
+          setNftError(null);
+        }}
+        onRetry={() => {
+          if (nftUserId) void loadUserNfts(nftUserId, nftData?.pagination.page ?? 1);
+        }}
+        onPageChange={(nextPage) => {
+          if (nftUserId) void loadUserNfts(nftUserId, nextPage);
+        }}
+      />
+    </>
+  );
+}
+
+function AdminCreators() {
+  const config = configs.creators;
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [status, setStatus] = useState<"" | "approved" | "pending" | "rejected" | "suspended">("");
+  const [sort, setSort] = useState<"NEWEST" | "OLDEST" | "NAME_ASC">("NEWEST");
+  const [page, setPage] = useState(1);
+  const [payload, setPayload] = useState<AdminCreatorsPayload["data"]>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [detailUser, setDetailUser] = useState<AdminUserDetails | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [walletUserId, setWalletUserId] = useState<string | null>(null);
+  const [walletUser, setWalletUser] = useState<AdminUserWallets | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [nftUserId, setNftUserId] = useState<string | null>(null);
+  const [nftData, setNftData] = useState<AdminUserNftsPayload["data"]>(null);
+  const [nftLoading, setNftLoading] = useState(false);
+  const [nftError, setNftError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [search]);
+
+  useEffect(() => {
+    let active = true;
+    // Each creator filter change starts a fresh server-side request.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    setError(null);
+    adminGraphql<AdminCreatorsPayload>(ADMIN_CREATORS_QUERY, {
+      input: { page, limit: 12, search: debouncedSearch, status: status || undefined, sort },
+    })
+      .then((response) => {
+        if (!active) return;
+        if (!response.success || !response.data) throw new Error(response.message);
+        setPayload(response.data);
+      })
+      .catch((requestError) => {
+        if (active)
+          setError(
+            requestError instanceof Error ? requestError.message : "Could not load creators.",
+          );
+      })
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [debouncedSearch, page, refreshKey, sort, status]);
+
+  const loadDetails = async (userId: string) => {
+    setDetailUserId(userId);
+    setDetailUser(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      const response = await adminGraphql<AdminUserDetailsPayload>(ADMIN_USER_DETAILS_QUERY, {
+        userId,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      setDetailUser(response.data);
+    } catch (requestError) {
+      setDetailError(
+        requestError instanceof Error ? requestError.message : "Could not load creator details.",
+      );
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+  const loadNfts = async (userId: string, requestedPage = 1) => {
+    setNftUserId(userId);
+    if (requestedPage === 1) setNftData(null);
+    setNftError(null);
+    setNftLoading(true);
+    try {
+      const response = await adminGraphql<AdminUserNftsPayload>(ADMIN_USER_NFTS_QUERY, {
+        userId,
+        page: requestedPage,
+        limit: 12,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      setNftData(response.data);
+    } catch (requestError) {
+      setNftError(
+        requestError instanceof Error ? requestError.message : "Could not load creator NFTs.",
+      );
+    } finally {
+      setNftLoading(false);
+    }
+  };
+
+  const loadCreatorWallets = async (userId: string) => {
+    setWalletUserId(userId);
+    setWalletUser(null);
+    setWalletError(null);
+    setWalletLoading(true);
+    try {
+      const response = await adminGraphql<AdminUserWalletsPayload>(ADMIN_USER_WALLETS_QUERY, {
+        userId,
+      });
+      if (!response.success || !response.data) throw new Error(response.message);
+      setWalletUser(response.data);
+    } catch (requestError) {
+      setWalletError(
+        requestError instanceof Error ? requestError.message : "Could not load creator wallets.",
+      );
+    } finally {
+      setWalletLoading(false);
+    }
+  };
+
+  const updateCreatorAccountStatus = async (
+    creator: NonNullable<AdminCreatorsPayload["data"]>["creators"][number],
+    nextStatus: "ACTIVE" | "REVIEW" | "SUSPENDED",
+  ) => {
+    setActionId(creator.id);
+    setError(null);
+    try {
+      const response = await adminGraphql<AdminUserStatusPayload>(
+        UPDATE_ADMIN_USER_STATUS_MUTATION,
+        { userId: creator.id, status: nextStatus },
+      );
+      if (!response.success) throw new Error(response.message);
+      setPayload((current) =>
+        current
+          ? {
+              ...current,
+              creators: current.creators.map((item) =>
+                item.id === creator.id ? { ...item, accountStatus: nextStatus } : item,
+              ),
+            }
+          : current,
+      );
+      setRefreshKey((value) => value + 1);
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not update creator account status.",
+      );
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const metrics: Metric[] = payload
+    ? [
+        {
+          label: "Total creators",
+          value: payload.metrics.totalCreators.toLocaleString(),
+          change: `${payload.metrics.approved} approved`,
+          tone: "violet",
+        },
+        {
+          label: "Approved",
+          value: payload.metrics.approved.toLocaleString(),
+          change: "Verified creator access",
+          tone: "green",
+        },
+        {
+          label: "Active creators",
+          value: payload.metrics.activeCreators.toLocaleString(),
+          change: "Active in last 30 days",
+          tone: "cyan",
+        },
+        {
+          label: "Needs attention",
+          value: (payload.metrics.pending + payload.metrics.restricted).toLocaleString(),
+          change: `${payload.metrics.pending} pending · ${payload.metrics.restricted} restricted`,
+          tone: "amber",
+        },
+      ]
+    : [];
+
+  return (
+    <>
+      <Header config={config} />
+      {loading && !payload ? (
+        <AdminMetricsSkeleton />
+      ) : payload ? (
+        <Metrics metrics={metrics} />
+      ) : null}
+      {loading && !payload ? (
+        <AdminManagementTableSkeleton columns={7} />
+      ) : (
+        <Card className="overflow-visible">
+          <div className="flex flex-wrap items-center gap-2 border-b border-white/[.06] p-3">
+            <label className="relative min-w-[220px] flex-1 max-[700px]:w-full max-[700px]:min-w-0 max-[700px]:flex-none">
+              <AdminIcon
+                name="search"
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5d687c]"
+              />
+              <input
+                className="h-10 w-full rounded-xl border border-white/[.07] bg-[#080b16] pl-9 pr-3 text-[10px] outline-none placeholder:text-[#515c70] focus:border-violet-400/30"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search creators…"
+              />
+            </label>
+            <div className="flex shrink-0 gap-2 max-[700px]:grid max-[700px]:w-full max-[700px]:grid-cols-2 max-[480px]:grid-cols-1">
+              <AdminFilterDropdown
+                label="Filter creators by status"
+                value={status}
+                options={[
+                  { value: "", label: "All statuses" },
+                  { value: "approved", label: "Approved" },
+                  { value: "pending", label: "Pending" },
+                  { value: "rejected", label: "Rejected" },
+                  { value: "suspended", label: "Suspended" },
+                ]}
+                onChange={(value) => {
+                  setStatus(value as typeof status);
+                  setPage(1);
+                }}
+              />
+              <AdminFilterDropdown
+                label="Sort creators"
+                value={sort}
+                options={[
+                  { value: "NEWEST", label: "Newest" },
+                  { value: "OLDEST", label: "Oldest" },
+                  { value: "NAME_ASC", label: "Name A–Z" },
+                ]}
+                onChange={(value) => {
+                  setSort(value as typeof sort);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </div>
+          {error ? (
+            <div className="p-8 text-center text-[10px] text-rose-300">{error}</div>
+          ) : loading && !payload ? (
+            <div className="space-y-px p-3">
+              {Array.from({ length: 6 }, (_, index) => (
+                <div key={index} className="h-[58px] animate-pulse rounded-xl bg-white/[.025]" />
+              ))}
+            </div>
+          ) : payload?.creators.length ? (
+            <div className="overflow-x-auto admin-sidebar-scroll">
+              <table className="w-full min-w-[900px] border-collapse text-left">
+                <thead>
+                  <tr>
+                    {["Creator", "Wallet", "Category", "NFTs", "Joined", "Status", "Actions"].map(
+                      (column) => (
+                        <th
+                          key={column}
+                          className={`border-b border-white/[.055] bg-white/[.012] p-3 text-[8px] font-bold uppercase tracking-[1px] text-[#505c70] ${column === "Actions" ? "text-right" : ""}`}
+                        >
+                          {column}
+                        </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {payload.creators.map((creator) => (
+                    <tr
+                      key={creator.id}
+                      className="border-b border-white/[.045] last:border-0 hover:bg-white/[.018]"
+                    >
+                      <td className="p-3">
+                        <strong className="block text-[10px] font-semibold text-[#dde2ec]">
+                          {creator.name}
+                        </strong>
+                        <span className="mt-1 block text-[9px] text-[#606c81]">
+                          {creator.username} · {creator.country}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-[9px] text-[#8d98aa]">
+                        {creator.wallet.length > 18
+                          ? `${creator.wallet.slice(0, 8)}…${creator.wallet.slice(-6)}`
+                          : creator.wallet}
+                      </td>
+                      <td className="p-3 text-[10px] capitalize text-[#8d98aa]">
+                        {creator.category}
+                      </td>
+                      <td className="p-3 text-[10px] text-[#8d98aa]">{creator.nftCount}</td>
+                      <td className="p-3 text-[10px] text-[#8d98aa]">
+                        {new Intl.DateTimeFormat("en", {
+                          month: "short",
+                          day: "2-digit",
+                          year: "numeric",
+                        }).format(new Date(creator.joinedAt))}
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={`inline-flex rounded-full border px-2.5 py-1 text-[9px] capitalize ${creator.creatorStatus === "approved" ? "border-emerald-300/[.13] bg-emerald-400/[.07] text-emerald-300" : creator.creatorStatus === "pending" ? "border-amber-300/[.13] bg-amber-400/[.07] text-amber-300" : "border-rose-300/[.13] bg-rose-400/[.07] text-rose-300"}`}
+                        >
+                          {creator.creatorStatus}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <AdminUserActionMenu
+                          user={{
+                            id: creator.id,
+                            name: creator.name,
+                            username: creator.username,
+                            wallet: creator.wallet,
+                            role: "Creator",
+                            joinedAt: creator.joinedAt,
+                            lastActiveAt: creator.lastActiveAt,
+                            status: creator.accountStatus,
+                          }}
+                          busy={actionId === creator.id}
+                          onViewDetails={() => void loadDetails(creator.id)}
+                          onViewWallets={() => void loadCreatorWallets(creator.id)}
+                          onViewNfts={() => void loadNfts(creator.id)}
+                          onStatus={(nextStatus) =>
+                            void updateCreatorAccountStatus(creator, nextStatus)
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-10 text-center text-[10px] text-[#637086]">No creators found.</div>
+          )}
+          {payload ? (
+            <div className="flex items-center justify-between gap-3 border-t border-white/[.055] p-3">
+              <span className="text-[9px] text-[#5d687c]">
+                Showing {payload.creators.length} of {payload.pagination.total.toLocaleString()}{" "}
+                creators
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((value) => value - 1)}
+                  className="h-8 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
+                >
+                  Previous
+                </button>
+                <span className="grid h-8 min-w-8 place-items-center rounded-lg bg-violet-500 px-2 text-[9px] text-white">
+                  {page}
+                </span>
+                <span className="px-1 text-[9px] text-[#5d687c]">
+                  of {Math.max(1, payload.pagination.pages)}
+                </span>
+                <button
+                  disabled={page >= payload.pagination.pages || loading}
+                  onClick={() => setPage((value) => value + 1)}
+                  className="h-8 rounded-lg border border-white/[.07] px-3 text-[9px] text-[#8994a8] disabled:opacity-35"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </Card>
+      )}
+      <AdminUserDetailsModal
+        open={detailUserId !== null}
+        loading={detailLoading}
+        error={detailError}
+        user={detailUser}
+        onClose={() => {
+          setDetailUserId(null);
+          setDetailUser(null);
+          setDetailError(null);
+        }}
+        onRetry={() => {
+          if (detailUserId) void loadDetails(detailUserId);
+        }}
+      />
+      <AdminUserWalletsModal
+        open={walletUserId !== null}
+        loading={walletLoading}
+        error={walletError}
+        user={walletUser}
+        onClose={() => {
+          setWalletUserId(null);
+          setWalletUser(null);
+          setWalletError(null);
+        }}
+        onRetry={() => {
+          if (walletUserId) void loadCreatorWallets(walletUserId);
+        }}
+      />
+      <AdminUserNftsModal
+        open={nftUserId !== null}
+        loading={nftLoading}
+        error={nftError}
+        data={nftData}
+        onClose={() => {
+          setNftUserId(null);
+          setNftData(null);
+          setNftError(null);
+        }}
+        onRetry={() => {
+          if (nftUserId) void loadNfts(nftUserId, nftData?.pagination.page ?? 1);
+        }}
+        onPageChange={(nextPage) => {
+          if (nftUserId) void loadNfts(nftUserId, nextPage);
         }}
       />
     </>
@@ -2028,6 +3347,7 @@ function HealthCard({
 export default function AdminSection({ section }: { section: AdminSectionName }) {
   if (section === "overview") return <Overview />;
   if (section === "users") return <AdminUsers />;
+  if (section === "creators") return <AdminCreators />;
   const config = configs[section];
   return (
     <>

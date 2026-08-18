@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../../lib/api";
+import PageBreadcrumb from "../layout/PageBreadcrumb";
 
 type TokenDetailData = {
   id: string;
@@ -264,8 +265,16 @@ export default function TokenDetail({ id }: { id: string }) {
   };
 
   return (
-    <main className="relative mx-auto w-[min(1180px,calc(100%_-_40px))] pb-5 pt-[100px] max-[600px]:w-[calc(100%_-_28px)] max-[600px]:pt-[112px]">
+    <main className="relative mx-auto w-[min(1180px,calc(100%_-_40px))] pb-5 pt-[118px] max-[600px]:w-[calc(100%_-_28px)] max-[600px]:pt-[100px]">
       <div className="pointer-events-none absolute -right-40 top-24 -z-10 h-[480px] w-[480px] rounded-full bg-[rgba(112,77,210,.1)] blur-[120px]" />
+
+      <PageBreadcrumb
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Tokens", href: "/tokens" },
+          { label: token.name },
+        ]}
+      />
 
       <section className="glass relative overflow-hidden rounded-[27px] border border-[var(--line)] bg-[linear-gradient(125deg,rgba(16,19,38,.94),rgba(11,14,28,.9))] p-4 shadow-[0_28px_90px_rgba(0,0,0,.32),inset_0_1px_rgba(255,255,255,.045)] max-[600px]:p-5">
         <div className="absolute right-[-80px] top-[-120px] h-72 w-72 rounded-full bg-[rgba(126,95,255,.11)] blur-[70px]" />
