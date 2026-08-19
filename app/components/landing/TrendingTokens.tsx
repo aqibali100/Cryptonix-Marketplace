@@ -154,7 +154,7 @@ export default function TrendingTokens() {
             href="/tokens"
             className="group flex items-center gap-1.5 text-[12px] font-semibold text-white"
           >
-            <span>All Tokens</span>
+            <span>All tokens</span>
             <svg
               className="h-3 w-3 transition group-hover:translate-x-0.5"
               viewBox="0 0 12 12"

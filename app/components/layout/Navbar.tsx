@@ -9,6 +9,7 @@ import { useBalance, useConnection } from "wagmi";
 import WalletModal from "../wallet/WalletModal";
 import { useAuth } from "../auth/AuthProvider";
 import cryptonixLogo from "../../../public/assets/logo.png";
+import GlobalSearchModal from "../search/GlobalSearchModal";
 
 const navigation = [
   { label: "Home", href: "/" },
@@ -55,13 +56,18 @@ function ProfileIcon() {
   );
 }
 
-function DashboardIcon() {
+function FavoriteIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="4" y="4" width="6" height="6" rx="1.5" />
-      <rect x="14" y="4" width="6" height="6" rx="1.5" />
-      <rect x="4" y="14" width="6" height="6" rx="1.5" />
-      <rect x="14" y="14" width="6" height="6" rx="1.5" />
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l8.9 8.8 8.8-8.8a5.5 5.5 0 0 0 0-7.8Z" />
     </svg>
   );
 }
@@ -99,6 +105,7 @@ export default function Navbar() {
   const [activeHash, setActiveHash] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameTouched, setUsernameTouched] = useState(false);
@@ -106,6 +113,17 @@ export default function Navbar() {
   const profileRef = useRef<HTMLDivElement>(null);
   const auth = useAuth();
   const connection = useConnection();
+
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener("keydown", openSearch);
+    return () => document.removeEventListener("keydown", openSearch);
+  }, []);
   const balance = useBalance({
     address: connection.address,
     chainId: connection.chainId,
@@ -205,7 +223,9 @@ export default function Navbar() {
             sizes="40px"
             priority
           />
-          <span className="-mt-2 inline-flex h-10 items-center text-[25px]">Cryptonix</span>
+          <span className="-mt-2 inline-flex h-10 items-center text-[25px] max-[375px]:text-[19px]">
+            Cryptonix
+          </span>
         </Link>
 
         <div
@@ -236,13 +256,14 @@ export default function Navbar() {
 
         <div className="nav-actions flex items-center gap-[9px]">
           <button
-            className="icon-button desktop-search grid w-[42px] h-[42px] place-items-center border-[1px_solid_var(--line)] rounded-[13px] bg-[rgba(255,255,255,.04)] cursor-pointer [&_svg]:w-4.5 [&_svg]:h-4.5 max-[900px]:hidden"
+            className="icon-button desktop-search grid h-[42px] w-[42px] cursor-pointer place-items-center rounded-[13px] border border-[var(--line)] bg-[rgba(255,255,255,.04)] transition hover:border-[rgba(155,123,255,.3)] hover:bg-white/[.07] [&_svg]:h-4.5 [&_svg]:w-4.5"
             aria-label="Search marketplace"
+            onClick={() => setSearchOpen(true)}
           >
             <SearchIcon />
           </button>
           <button
-            className={`wallet-button nav-reflection-link [&_svg]:w-4.5 [&_svg]:h-4.5 relative flex h-11 items-center gap-2 rounded-[13px] py-0 px-3.5 text-[13px] font-semibold cursor-pointer transition hover:[transform:translateY(-2px)] max-[600px]:px-3 max-[420px]:w-10 max-[420px]:min-w-10 max-[420px]:justify-center max-[420px]:px-0 max-[420px]:[&_.wallet-label]:hidden ${connection.isConnected ? "min-w-[104px] border border-[rgba(155,123,255,.24)] bg-[linear-gradient(115deg,rgba(141,107,255,.16),rgba(104,73,234,.08))] shadow-[inset_0_1px_rgba(255,255,255,.05),0_8px_24px_rgba(80,54,180,.16)] hover:border-[rgba(155,123,255,.4)] hover:bg-[linear-gradient(115deg,rgba(141,107,255,.23),rgba(104,73,234,.13))]" : "max-w-[180px] border-0 bg-[linear-gradient(110deg,_#8d6bff,_#6849ea)] shadow-[0_10px_28px_rgba(105,72,235,.3)] hover:shadow-[0_14px_34px_rgba(105,72,235,.42)]"}`}
+            className={`wallet-button nav-reflection-link [&_svg]:w-4.5 [&_svg]:h-4.5 relative flex h-11 items-center gap-2 rounded-[13px] py-0 px-3.5 text-[13px] font-semibold cursor-pointer transition hover:[transform:translateY(-2px)] max-[900px]:hidden ${connection.isConnected ? "min-w-[104px] border border-[rgba(155,123,255,.24)] bg-[linear-gradient(115deg,rgba(141,107,255,.16),rgba(104,73,234,.08))] shadow-[inset_0_1px_rgba(255,255,255,.05),0_8px_24px_rgba(80,54,180,.16)] hover:border-[rgba(155,123,255,.4)] hover:bg-[linear-gradient(115deg,rgba(141,107,255,.23),rgba(104,73,234,.13))]" : "max-w-[180px] border-0 bg-[linear-gradient(110deg,_#8d6bff,_#6849ea)] shadow-[0_10px_28px_rgba(105,72,235,.3)] hover:shadow-[0_14px_34px_rgba(105,72,235,.42)]"}`}
             onClick={() => setWalletOpen(true)}
             title={connection.isConnected ? `${networkLabel} — ${walletLabel}` : undefined}
             aria-label={
@@ -361,7 +382,7 @@ export default function Navbar() {
                       </p>
                     )}
                     <button
-                      className="mt-1 h-11 cursor-pointer rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-4 text-[12px] font-semibold shadow-[0_10px_25px_rgba(105,72,235,.25)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="user-primary-action mt-1 w-full"
                       disabled={isSavingUsername || Boolean(validateUsername(username))}
                       type="submit"
                     >
@@ -381,12 +402,12 @@ export default function Navbar() {
                     </Link>
                     <Link
                       className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[12px] text-[#cbd2df] transition hover:bg-white/[.06] hover:text-white"
-                      href="/dashboard"
+                      href="/favorites"
                       onClick={() => setProfileOpen(false)}
                       role="menuitem"
                     >
-                      <DashboardIcon />
-                      <span>Dashboard</span>
+                      <FavoriteIcon />
+                      <span>My Favourite</span>
                     </Link>
                     <Link
                       className="flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[12px] text-[#cbd2df] transition hover:bg-white/[.06] hover:text-white"
@@ -424,16 +445,16 @@ export default function Navbar() {
                 ) : (
                   <div className="mt-2">
                     <button
-                      className="flex h-10 w-full cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-2 text-[11px] font-semibold shadow-[0_10px_25px_rgba(105,72,235,.25)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 [&_svg]:h-3.5 [&_svg]:w-3.5 [&_svg]:shrink-0"
+                      className="user-primary-action min-h-10 w-full whitespace-nowrap px-2 text-[11px] [&_svg]:h-3.5 [&_svg]:w-3.5 [&_svg]:shrink-0"
                       disabled={auth.isLoading || auth.isSigningIn}
                       onClick={() => void authenticate()}
                       role="menuitem"
                     >
                       <ProfileIcon />
                       {!connection.isConnected
-                        ? "Connect Wallet"
+                        ? "Connect wallet"
                         : auth.isSigningIn
-                          ? "Waiting for Signature…"
+                          ? "Waiting for signature…"
                           : "Sign in with Ethereum"}
                     </button>
                     {auth.error && (
@@ -453,34 +474,53 @@ export default function Navbar() {
             )}
           </div>
           <button
-            className={`menu-button ${isOpen ? "is-open" : ""} grid w-[42px] h-[42px] place-items-center border-[1px_solid_var(--line)] rounded-[13px] bg-[rgba(255,255,255,.04)] cursor-pointer hidden relative [&_span]:absolute [&_span]:w-[17px] [&_span]:h-[1.5px] [&_span]:bg-white [&_span]:transition [&_span]:[transform:translateY(-3px)] [&_span:last-child]:[transform:translateY(3px)] [&.is-open_span]:[transform:rotate(45deg)] [&.is-open_span:last-child]:[transform:rotate(-45deg)] max-[900px]:grid`}
+            className="relative hidden h-[42px] w-[42px] cursor-pointer place-items-center rounded-[13px] border border-[var(--line)] bg-[rgba(255,255,255,.04)] transition hover:border-[rgba(155,123,255,.3)] hover:bg-white/[.07] max-[900px]:grid"
             aria-label="Toggle navigation menu"
             aria-expanded={isOpen}
             onClick={() => setIsOpen((value) => !value)}
           >
-            <span />
-            <span />
+            <span
+              className={`absolute h-[1.5px] w-[18px] rounded-full bg-white transition duration-200 ${isOpen ? "rotate-45" : "-translate-y-[5px]"}`}
+            />
+            <span
+              className={`absolute h-[1.5px] w-[18px] rounded-full bg-white transition duration-200 ${isOpen ? "scale-x-0 opacity-0" : "opacity-100"}`}
+            />
+            <span
+              className={`absolute h-[1.5px] w-[18px] rounded-full bg-white transition duration-200 ${isOpen ? "-rotate-45" : "translate-y-[5px]"}`}
+            />
           </button>
         </div>
 
         {isOpen && (
-          <div className="mobile-menu absolute top-[calc(100%_+_10px)] left-0 grid w-full gap-0.5 p-2.5 border-[1px_solid_var(--line)] rounded-[18px] bg-[rgba(9,12,25,.94)] shadow-[0_25px_70px_rgba(0,0,0,.45)] [backdrop-filter:blur(24px)] [&_a]:flex [&_a]:justify-between [&_a]:rounded-[11px] [&_a]:py-[13px] [&_a]:px-[15px] [&_a]:text-[#d8ddeb] [&_a:hover]:bg-[rgba(255,255,255,.06)] [&_a:hover]:text-white">
+          <div className="mobile-menu absolute left-0 top-[calc(100%_+_10px)] grid w-full gap-0.5 rounded-[18px] border border-[var(--line)] bg-[rgba(9,12,25,.94)] p-2.5 shadow-[0_25px_70px_rgba(0,0,0,.45)] [backdrop-filter:blur(24px)]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setWalletOpen(true);
+              }}
+              className="mb-1 flex w-full cursor-pointer items-center justify-between rounded-[11px] border border-[rgba(155,123,255,.18)] bg-[linear-gradient(110deg,rgba(141,107,255,.12),rgba(74,221,209,.035))] px-[15px] py-[13px] text-left text-[13px] text-[#e2e6ef] transition hover:border-violet-400/30 hover:bg-violet-400/[.1]"
+            >
+              <span>{connection.isConnected ? "Connected wallet" : "Connect wallet"}</span>
+              <small className="max-w-[150px] truncate text-[10px] font-medium text-[#929caf]">
+                {connection.isConnected ? walletLabel : "MetaMask"}
+              </small>
+            </button>
             {visibleNavigation.map((item) => {
               const active = isActiveLink(item.href);
               return (
                 <Link
                   aria-current={active ? "page" : undefined}
-                  className={`nav-reflection-link ${
+                  className={`nav-reflection-link rounded-[11px] border px-[15px] py-[13px] text-[#d8ddeb] transition hover:bg-white/[.06] hover:text-white ${
                     active
-                      ? "border border-[rgba(155,123,255,.2)] bg-[linear-gradient(110deg,rgba(141,107,255,.18),rgba(74,221,209,.06))] text-white"
-                      : "border border-transparent"
+                      ? "border-[rgba(155,123,255,.2)] bg-[linear-gradient(110deg,rgba(141,107,255,.18),rgba(74,221,209,.06))] text-white"
+                      : "border-transparent"
                   }`}
                   key={item.label}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
                 >
                   {item.label}
-                  <span aria-hidden="true">↗</span>
                 </Link>
               );
             })}
@@ -488,6 +528,7 @@ export default function Navbar() {
         )}
       </nav>
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
+      <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

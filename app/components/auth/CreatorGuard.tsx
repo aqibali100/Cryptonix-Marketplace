@@ -56,7 +56,7 @@ export default function CreatorGuard({ children }: { children: React.ReactNode }
             Back to Marketplace
           </Link>
           <Link
-            className="flex h-11 min-w-0 items-center justify-center rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-3 text-center text-[11px] font-semibold"
+            className="user-primary-action min-w-0 px-3 text-[11px]"
             href={auth.user ? "/become-creator" : "/dashboard"}
           >
             {pending

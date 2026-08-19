@@ -375,11 +375,11 @@ export default function TokenDetail({ id }: { id: string }) {
                 />
               </svg>
             )}
-            {copied ? "Copied" : "Share Token"}
+            {copied ? "Copied" : "Share token"}
           </button>
           {token.homepage && (
             <Link
-              className="ml-auto inline-flex h-10 items-center rounded-[11px] bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-4 text-[12px] font-semibold shadow-[0_10px_25px_rgba(105,72,235,.24)] max-[500px]:ml-0"
+              className="user-primary-action ml-auto min-h-10 max-[500px]:ml-0"
               href={token.homepage}
               target="_blank"
               rel="noreferrer"

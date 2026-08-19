@@ -5,6 +5,7 @@ import { formatEther } from "viem";
 import { useState } from "react";
 import { API_URL, graphQLRequest } from "../../lib/api";
 import PageBreadcrumb from "../layout/PageBreadcrumb";
+import FavoriteButton from "./FavoriteButton";
 
 type Nft = {
   id: string;
@@ -26,6 +27,7 @@ type Nft = {
   tokenId: string | null;
   mintedAt: string | null;
   likes: number;
+  isFavorited: boolean;
   volumeChange24h: number;
   creator: { username: string; profileImage: string; verified: boolean };
   traits: Array<{ traitType: string; value: string }>;
@@ -56,6 +58,7 @@ const NFT_QUERY = /* GraphQL */ `
         tokenId
         mintedAt
         likes
+        isFavorited
         volumeChange24h
         creator {
           username
@@ -188,10 +191,7 @@ export default function NftDetail({ id }: { id: string }) {
           <p className="text-sm text-[#7d879b]">
             {query.error instanceof Error ? query.error.message : "This NFT is not public."}
           </p>
-          <button
-            onClick={() => query.refetch()}
-            className="mt-4 rounded-xl bg-[#7659e8] px-5 py-2.5 text-sm font-semibold"
-          >
+          <button onClick={() => query.refetch()} className="user-primary-action mt-4">
             Try again
           </button>
         </div>
@@ -280,10 +280,12 @@ export default function NftDetail({ id }: { id: string }) {
             <span className="rounded-full border border-[#9b7bff]/20 bg-[#9b7bff]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[1.5px] text-[#b7a5ff]">
               {nft.category}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[.07] bg-white/[.025] px-3 py-1.5 text-xs text-[#9099aa]">
-              <Icon name="heart" />
-              {nft.likes}
-            </span>
+            <FavoriteButton
+              nftId={nft.id}
+              isFavorited={nft.isFavorited}
+              likes={nft.likes}
+              className="rounded-full border border-white/[.07] bg-white/[.025] px-3 py-1.5 text-xs text-[#9099aa] hover:border-rose-400/25 hover:bg-rose-400/[.06] hover:text-white"
+            />
           </div>
           <h1 className="mb-5 mt-4 text-[clamp(42px,5.5vw,68px)] font-semibold leading-[.94] tracking-[-3.8px]">
             {nft.name}
@@ -346,6 +348,69 @@ export default function NftDetail({ id }: { id: string }) {
               <p className="mb-0 mt-3 text-xs text-[#737e93]">
                 Auction ends {new Date(nft.auctionEndsAt).toLocaleString()}
               </p>
+            )}
+            {nft.saleType === "FIXED" && (
+              <div className="mt-5 border-t border-white/[.07] pt-4">
+                <button type="button" className="user-primary-action w-full gap-2.5">
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 16.5z" />
+                    <path d="M16 11h4v4h-4a2 2 0 1 1 0-4Z" />
+                  </svg>
+                  Buy now
+                </button>
+                <p className="mb-0 mt-2 text-center text-[9px] text-[#59647a]">
+                  Network fee is calculated when you confirm the purchase.
+                </p>
+              </div>
+            )}
+            {nft.saleType === "AUCTION" && (
+              <div className="mt-5 border-t border-white/[.07] pt-4">
+                <label className="mb-2 block text-[9px] font-semibold uppercase tracking-[1.2px] text-[#687389]">
+                  Your bid
+                </label>
+                <div className="flex gap-2 max-[460px]:flex-col">
+                  <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl border border-white/[.09] bg-[#090d1b]/70 px-3 transition focus-within:border-violet-400/45 focus-within:ring-2 focus-within:ring-violet-400/[.08]">
+                    <input
+                      aria-label="Bid amount"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-white outline-none placeholder:text-[#485267]"
+                    />
+                    <span className="text-[10px] font-bold text-[#9ca6b8]">ETH</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="user-primary-action shrink-0 gap-2 px-5 max-[460px]:w-full"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                    >
+                      <path d="m14 5 5 5M12.5 6.5l5 5M5 19l7.5-7.5M3 21l4-1 12-12-3-3L4 17l-1 4Z" />
+                    </svg>
+                    Place bid
+                  </button>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-3 text-[9px] text-[#59647a]">
+                  <span>Enter an amount above the current bid</span>
+                  <span>Service fee 2.5%</span>
+                </div>
+              </div>
             )}
           </div>
           {nft.traits.length > 0 && (

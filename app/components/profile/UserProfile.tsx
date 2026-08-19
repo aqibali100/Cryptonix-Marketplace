@@ -192,7 +192,7 @@ export default function UserProfile({ routeUsername }: { routeUsername: string }
             </div>
           </div>
           <button
-            className="h-10 cursor-pointer rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-5 text-[12px] font-semibold shadow-[0_10px_25px_rgba(105,72,235,.24)] max-[600px]:w-full"
+            className="user-primary-action max-[600px]:w-full"
             onClick={() => {
               setDraft(profile);
               setEditing((value) => !value);
@@ -260,11 +260,7 @@ export default function UserProfile({ routeUsername }: { routeUsername: string }
               value={draft.website}
             />
             {error && <p className="m-0 text-[12px] text-rose-300">{error}</p>}
-            <button
-              className="h-12 cursor-pointer rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={saving}
-              type="submit"
-            >
+            <button className="user-primary-action w-full" disabled={saving} type="submit">
               {saving ? "Saving profile…" : "Save changes"}
             </button>
           </form>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL, graphQLRequest } from "../../lib/api";
 import NftCardSkeleton from "../skeleton/NftCardSkeleton";
+import FavoriteButton from "../nfts/FavoriteButton";
 
 type HomeNft = {
   id: string;
@@ -15,6 +16,7 @@ type HomeNft = {
   imageUrl: string;
   priceWei: string;
   likes: number;
+  isFavorited: boolean;
   volumeChange24h: number;
 };
 
@@ -44,6 +46,7 @@ const HOME_NFTS_QUERY = /* GraphQL */ `
         imageUrl
         priceWei
         likes
+        isFavorited
         volumeChange24h
       }
     }
@@ -246,15 +249,18 @@ export default function TrendingNFTs() {
               : nfts.map((nft) => (
                   <Link
                     href={`/nft/${nft.id}`}
-                className="glass group w-[calc((100%-39px)/4)] min-w-[calc((100%-39px)/4)] snap-start overflow-hidden rounded-[19px] border-[1px_solid_var(--line)] bg-[var(--surface)] shadow-[inset_0_1px_rgba(255,255,255,.05)] transition-transform duration-300 [backdrop-filter:blur(22px)] [-webkit-backdrop-filter:blur(22px)] hover:-translate-y-1 hover:border-[rgba(155,123,255,.35)] max-[900px]:w-[calc((100%-13px)/2)] max-[900px]:min-w-[calc((100%-13px)/2)] max-[600px]:w-full max-[600px]:min-w-full"
+                    className="glass group w-[calc((100%-39px)/4)] min-w-[calc((100%-39px)/4)] snap-start overflow-hidden rounded-[19px] border-[1px_solid_var(--line)] bg-[var(--surface)] shadow-[inset_0_1px_rgba(255,255,255,.05)] transition-transform duration-300 [backdrop-filter:blur(22px)] [-webkit-backdrop-filter:blur(22px)] hover:-translate-y-1 hover:border-[rgba(155,123,255,.35)] max-[900px]:w-[calc((100%-13px)/2)] max-[900px]:min-w-[calc((100%-13px)/2)] max-[600px]:w-full max-[600px]:min-w-full"
                     key={nft.id}
                   >
                     <div className="relative grid h-[245px] place-items-center overflow-hidden bg-[#151a31] max-[600px]:h-[310px]">
                       <Artwork nft={nft} />
-                      <span className="absolute right-[11px] top-[11px] flex items-center gap-1.5 rounded-full border border-white/10 bg-[#050711b8] px-2 py-1.5 text-[12px]">
-                        <Icon name="heart" className="h-3.5 w-3.5" />
-                        {nft.likes}
-                      </span>
+                      <FavoriteButton
+                        nftId={nft.id}
+                        isFavorited={nft.isFavorited}
+                        likes={nft.likes}
+                        wrapperClassName="absolute right-[11px] top-[11px] z-10"
+                        className="min-w-[46px] rounded-full border border-white/15 bg-[#050711d9] px-2 py-1.5 text-[12px] text-white shadow-lg backdrop-blur-lg hover:border-rose-400/40 hover:bg-[#160d1be8]"
+                      />
                       <i className="absolute left-[11px] top-[11px] flex items-center gap-1.5 rounded-full border border-white/10 bg-[#050711b8] px-2 py-1.5 text-[12px] not-italic tracking-[.5px] text-[#cbbcff]">
                         <Icon name="sparkles" className="h-3.5 w-3.5" />
                         TOP {nft.rank}

@@ -36,7 +36,7 @@ export default function AuctionPanel() {
         />
         <span>ETH</span>
       </label>
-      <button className="place-bid-large flex w-full h-[47px] items-center justify-center gap-[15px] mt-2.5 border-0 rounded-xl bg-[linear-gradient(110deg,#906dff,#6547e8)] shadow-[0_10px_28px_rgba(105,72,235,.25)] text-[12px] font-semibold cursor-pointer">
+      <button className="user-primary-action place-bid-large mt-2.5 w-full">
         Place a bid <span>→</span>
       </button>
       <div className="auction-note text-center [margin:10px_0_16px] text-[#59647a] text-[12px]">

@@ -34,10 +34,7 @@ export default function PermissionGuard({
             Your current user role does not include creator access. Creator roles can be added later
             without changing the authentication flow.
           </p>
-          <Link
-            className="inline-flex h-11 items-center rounded-[13px] bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-5 text-sm font-semibold"
-            href="/marketplace"
-          >
+          <Link className="user-primary-action" href="/marketplace">
             Explore marketplace
           </Link>
         </section>

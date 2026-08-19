@@ -116,7 +116,7 @@ export default function WalletModal({ open, onClose }: { open: boolean; onClose:
                 void auth.logout().finally(() => disconnect(undefined, { onSuccess: onClose }))
               }
             >
-              {isDisconnecting ? "Disconnecting…" : "Disconnect Wallet"}
+              {isDisconnecting ? "Disconnecting…" : "Disconnect wallet"}
             </button>
           </div>
         ) : (

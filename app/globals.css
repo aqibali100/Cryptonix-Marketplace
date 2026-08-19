@@ -11,6 +11,53 @@
   --cyan: #53e8dc;
 }
 
+/* Shared primary CTA for collector-facing screens. */
+.user-primary-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(177, 151, 255, 0.16);
+  border-radius: 12px;
+  padding: 0 20px;
+  background: linear-gradient(110deg, #8d6bff, #6849ea);
+  box-shadow:
+    0 10px 25px rgba(105, 72, 235, 0.25),
+    inset 0 1px rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.user-primary-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+  box-shadow:
+    0 14px 32px rgba(105, 72, 235, 0.34),
+    inset 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.user-primary-action:focus-visible {
+  outline: 2px solid rgba(177, 151, 255, 0.72);
+  outline-offset: 3px;
+}
+
+.user-primary-action:disabled,
+.user-primary-action[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+}
+
 /* Keep supporting copy legible and consistent throughout Creator Studio. */
 .creator-workspace .text-\[8px\] {
   font-size: 11px !important;

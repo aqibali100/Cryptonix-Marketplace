@@ -36,7 +36,7 @@ export default function DashboardGuard({ children }: { children: React.ReactNode
           </div>
           {connection.isConnected ? (
             <button
-              className="h-11 w-full rounded-[13px] bg-[linear-gradient(110deg,#8d6bff,#6849ea)] text-sm font-semibold disabled:opacity-60"
+              className="user-primary-action w-full"
               disabled={auth.isSigningIn}
               onClick={() => void auth.signIn().catch(() => undefined)}
             >

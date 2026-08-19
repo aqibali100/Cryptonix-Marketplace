@@ -21,10 +21,7 @@ export default function HeroSection() {
         </h1>
         <p>Discover, collect, and trade unique NFTs and crypto assets all in one marketplace.</p>
         <div className="hero-actions flex flex-wrap gap-3 max-[900px]:justify-center max-[600px]:grid max-[600px]:[&_a]:w-full">
-          <Link
-            className="primary-button hover:[transform:translateY(-2px)] hover:shadow-[0_14px_34px_rgba(105,72,235,.42)] inline-flex min-h-13 items-center justify-center gap-[15px] rounded-[15px] py-0 px-[21px] text-sm font-semibold transition bg-[linear-gradient(110deg,_#8e6cff,_#6649eb)] shadow-[0_12px_35px_rgba(105,72,235,.28)]"
-            href="/marketplace"
-          >
+          <Link className="user-primary-action min-h-13 gap-3 px-6 text-sm" href="/marketplace">
             Explore marketplace
           </Link>
         </div>

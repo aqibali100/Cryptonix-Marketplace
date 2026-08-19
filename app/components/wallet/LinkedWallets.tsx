@@ -63,7 +63,8 @@ export default function LinkedWallets() {
       ? "Loading balance…"
       : "Balance unavailable";
   const activeNetwork =
-    connection.chain?.name ?? (connection.chainId ? `Chain ${connection.chainId}` : "Select network");
+    connection.chain?.name ??
+    (connection.chainId ? `Chain ${connection.chainId}` : "Select network");
 
   useEffect(() => {
     if (!networkMenuOpen) return;
@@ -104,10 +105,10 @@ export default function LinkedWallets() {
             </p>
           </div>
           <button
-            className="h-11 shrink-0 cursor-pointer rounded-xl bg-[linear-gradient(110deg,#8d6bff,#6849ea)] px-5 text-[12px] font-semibold shadow-[0_10px_25px_rgba(105,72,235,.25)] transition hover:brightness-110 max-[550px]:w-full"
+            className="user-primary-action shrink-0 max-[550px]:w-full"
             onClick={() => setWalletOpen(true)}
           >
-            Link a Wallet
+            Link a wallet
           </button>
         </div>
 
@@ -156,7 +157,9 @@ export default function LinkedWallets() {
                 >
                   <div className="border-b border-white/[.06] px-2 pb-2 pt-1">
                     <strong className="block text-[11px]">Choose a Network</strong>
-                    <span className="text-[9px] text-[#657087]">MetaMask will ask you to confirm</span>
+                    <span className="text-[9px] text-[#657087]">
+                      MetaMask will ask you to confirm
+                    </span>
                   </div>
                   <div className="mt-1 max-h-[292px] space-y-1 overflow-y-auto pr-1 [scrollbar-color:#4f4378_transparent] [scrollbar-width:thin]">
                     {supportedChains.map((chain) => {
@@ -174,11 +177,28 @@ export default function LinkedWallets() {
                         >
                           <NetworkMark chainId={chain.id} name={chain.name} />
                           <span className="min-w-0 flex-1">
-                            <strong className="block truncate text-[11px] text-[#dce1eb]">{chain.name}</strong>
-                            <small className="mt-0.5 block text-[9px] text-[#657087]">Chain ID {chain.id}</small>
+                            <strong className="block truncate text-[11px] text-[#dce1eb]">
+                              {chain.name}
+                            </strong>
+                            <small className="mt-0.5 block text-[9px] text-[#657087]">
+                              Chain ID {chain.id}
+                            </small>
                           </span>
                           {active && (
-                            <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-400/[.12] text-[11px] text-emerald-300">✓</span>
+                            <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-400/[.12] text-emerald-300">
+                              <svg
+                                aria-hidden="true"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-3 w-3"
+                              >
+                                <path d="m5 12 4 4 10-10" />
+                              </svg>
+                            </span>
                           )}
                         </button>
                       );

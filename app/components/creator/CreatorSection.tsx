@@ -467,7 +467,20 @@ function FilterDropdown({
                   <span
                     className={`grid h-4 w-4 place-items-center rounded-full border text-[9px] ${active ? "border-[#8d6bff] bg-[#8d6bff] text-white" : "border-[#3f485b]"}`}
                   >
-                    {active ? "✓" : ""}
+                    {active && (
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-2.5 w-2.5"
+                      >
+                        <path d="m5 12 4 4 10-10" />
+                      </svg>
+                    )}
                   </span>
                   <span className="truncate">{option.label}</span>
                 </button>
